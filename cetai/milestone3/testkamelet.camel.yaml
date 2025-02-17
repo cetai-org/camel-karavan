@@ -1,0 +1,14 @@
+- route:
+    id: route-bcd9
+    nodePrefixId: route-578
+    from:
+      id: from-9b97
+      uri: kamelet:timer-source
+      parameters:
+        message: hello
+        period: 2000
+        repeatCount: 10
+      steps:
+        - to:
+            id: to-63a9
+            uri: kamelet:sabreinventorymark-sink

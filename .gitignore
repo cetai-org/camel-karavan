@@ -49,6 +49,7 @@ yarn-error.log*
 
 # Local environment
 .camel-jbang
+.camel-jbang-run
 .env
 /.java-version
 /keys/*
