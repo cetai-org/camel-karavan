@@ -1,0 +1,32 @@
+- rest:
+    id: rest-a8d4
+    description: Transition microservice
+    path: /transition
+    consumes: application/json
+    produces: application/json
+    bindingMode: json
+    post:
+      - id: post-67b5
+        path: /create-pnr
+        to: direct:createpnr
+        consumes: application/json
+        produces: application/json
+        type: com.cetai.milestone3.transition.model.Vehicle
+        bindingMode: json
+- route:
+    id: route-5ef0
+    nodePrefixId: route-d3c
+    from:
+      id: from-cb4c
+      uri: direct
+      parameters:
+        name: createpnr
+      steps:
+        - to:
+            id: to-621c
+            uri: mapstruct
+            parameters:
+              className: com.cetai.milestone3.transition.model.Car
+        - log:
+            id: log-e646
+            message: ${body}

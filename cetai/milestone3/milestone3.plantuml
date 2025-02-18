@@ -1,0 +1,29 @@
+@startuml  milestone3
+
+|IBE|
+:List offers;
+:Select offer;
+|#AntiqueWhite|OMS|
+:Inventory Marking;
+|#LightPink|Transition|
+:Inventory Marking;
+|Sabre Connector|
+:Start Session;
+:Adjust Inventory Request;
+|IBE|
+:Add Passenger;
+|OMS|
+:Create Order;
+|Transition|
+:Create Pnr Request;
+|Sabre Connector|
+:Add Passenger Request;
+|IBE|
+:Add Seat;
+|OMS|
+:Update Order;
+|Transition|
+:Create Pnr Request;
+|Sabre Connector|
+:Add Passenger Request;
+@enduml
