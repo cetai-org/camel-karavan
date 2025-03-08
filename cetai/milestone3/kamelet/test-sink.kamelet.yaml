@@ -1,7 +1,7 @@
 apiVersion: camel.apache.org/v1
 kind: Kamelet
 metadata:
-  name: sabreinventorymark-sink
+  name: test-sink
   annotations:
     camel.apache.org/kamelet.support.level: Preview
     camel.apache.org/catalog.version: "1.0"
@@ -31,11 +31,7 @@ spec:
     required:
       - sessionurl
     type: object
-    properties:
-      sessionurl:
-        title: Sabre Session URL
-        description: Sabre Session URL
-        type: string
+    properties: {}
   types:
     in:
       mediaType: ""
@@ -49,52 +45,11 @@ spec:
     - mvn:com.cetai.kamelet.sabreinventory.model:sabreinventory-model:1.0
   template:
     route:
-      id: route-8a5e
+      id: route-07bc
       from:
         id: from-8520
         uri: kamelet:source
         steps:
-          - unmarshal:
-              id: unmarshal-752a
-              json:
-                id: json-b611
-                library: Jackson
-                unmarshalType: com.cetai.kamelet.sabreinventory.model.ProductPnrVO
-          - process:
-              id: process-ba9c
-              ref: productPnrProcessor
-          - to:
-              id: to-53de
-              description: " Call Sabre CreateSessionHttp"
-              uri: http
-              parameters:
-                httpUri: "{{sessionurl}}"
-                httpMethod: POST
-          - unmarshal:
-              id: unmarshal-30b8
-              jaxb:
-                id: jaxb-8c85
-                contextPath: com.cetai.kamelet.sabreinventory.AdjustInventoryRQ
-                contextPathIsClassName: true
-          - process:
-              id: process-a40c
-              ref: adjustInventoryProcessor
-          - to:
-              id: to-83cc
-              uri: rest
-              parameters:
-                method: post
-                path: /mock/adjustinventory
-                bindingMode: json
-                host: localhost:8090
-                consumes: application/json
-                produces: application/json
-          - unmarshal:
-              id: unmarshal-a537
-              json:
-                id: json-9ccf
-                library: Jackson
-                unmarshalType: com.cetai.kamelet.sabreinventory.AdjustInventoryRS
           - log:
               id: log-74a7
-              message: ${body}
+              message: ${myproperty}

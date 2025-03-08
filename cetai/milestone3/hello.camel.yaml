@@ -11,6 +11,4 @@
       steps:
         - to:
             id: to-63a9
-            uri: kamelet:sabreinventorymark-sink
-            parameters:
-              sessionurl: http://localhost:8090/mock/createsession
+            uri: kamelet:test-sink

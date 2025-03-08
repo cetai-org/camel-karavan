@@ -4,12 +4,19 @@
 :List offers;
 :Select offer;
 |#AntiqueWhite|OMS|
-:Inventory Marking;
+:Adjust InventoryRQ;
 |#LightPink|Transition|
-:Inventory Marking;
+:Initiate Adjust InventoryRQ;
+|Async Workflow|
+:Log Request;
+|#LightPink|Transition|
+:Create Session ID;
+
 |Sabre Connector|
 :Start Session;
 :Adjust Inventory Request;
+|#LightPink|Transition|
+:Create Adjust InventoryRS;
 |IBE|
 :Add Passenger;
 |OMS|
