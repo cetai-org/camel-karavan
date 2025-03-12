@@ -1,4 +1,4 @@
-package com.cetai.kamelet.sabreinventory;
+package com.cetai.kamelet.sabreinventory.model;
 
 public class AdjustInventoryRS {
 

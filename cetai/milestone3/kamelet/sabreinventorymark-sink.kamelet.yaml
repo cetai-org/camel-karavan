@@ -49,7 +49,7 @@ spec:
     - mvn:com.cetai.kamelet.sabreinventory.model:sabreinventory-model:1.0
   template:
     route:
-      id: route-8a5e
+      id: route-95f2
       from:
         id: from-8520
         uri: kamelet:source
@@ -70,11 +70,14 @@ spec:
               parameters:
                 httpUri: "{{sessionurl}}"
                 httpMethod: POST
+          - log:
+              id: log-74a7
+              message: ${body}
           - unmarshal:
               id: unmarshal-30b8
               jaxb:
                 id: jaxb-8c85
-                contextPath: com.cetai.kamelet.sabreinventory.AdjustInventoryRQ
+                contextPath: com.cetai.kamelet.sabreinventory.model.SessionCreateRS
                 contextPathIsClassName: true
           - process:
               id: process-a40c
@@ -89,12 +92,6 @@ spec:
                 host: localhost:8090
                 consumes: application/json
                 produces: application/json
-          - unmarshal:
-              id: unmarshal-a537
-              json:
-                id: json-9ccf
-                library: Jackson
-                unmarshalType: com.cetai.kamelet.sabreinventory.AdjustInventoryRS
           - log:
               id: log-74a7
               message: ${body}

@@ -8,6 +8,8 @@ public class CreatePnrRQ {
 
     private String requestString;
 
+    
+
     public String getRequestString() {
         return requestString;
     }
@@ -19,6 +21,22 @@ public class CreatePnrRQ {
     @Override
     public String toString() {
         return "CreatePnrRQ [requestString=" + requestString + "]";
+    }
+
+    public POSType getPos() {
+        return pos;
+    }
+
+    public void setPos(POSType pos) {
+        this.pos = pos;
+    }
+
+    public OrderCreateRequestType getRequest() {
+        return request;
+    }
+
+    public void setRequest(OrderCreateRequestType request) {
+        this.request = request;
     }
 
     

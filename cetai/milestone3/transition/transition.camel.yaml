@@ -11,8 +11,15 @@
         to: direct:createpnr
         consumes: application/json
         produces: application/json
-        type: com.cetai.milestone3.transition.model.Vehicle
+        type: com.cetai.milestone3.transition.model.CreatePnrRQ
         bindingMode: json
+- beans:
+    - name: createPnrMapperImpl
+      type: com.cetai.milestone3.transition.mapper.CreatePnrMapperImpl
+    - name: adjustInventoryProcessor
+      type: com.cetai.kamelet.util.kameletutil.AdjustInventoryRQConverter
+    - name: productPnrProcessor
+      type: com.cetai.kamelet.util.kameletutil.ProductPnrProcessor
 - route:
     id: route-5ef0
     nodePrefixId: route-d3c
@@ -22,11 +29,19 @@
       parameters:
         name: createpnr
       steps:
+        - bean:
+            id: bean-a9d0
+            description: Convert Body To ProductPnrVO
+            ref: createPnrMapperImpl
+            method: toProductPnrVO
+            beanType: com.cetai.milestone3.transition.mapper.CreatePnrMapperImpl
+        - marshal:
+            id: marshal-3789
+            json:
+              id: json-dc9a
+              library: Jackson
         - to:
-            id: to-621c
-            uri: mapstruct
+            id: to-63a9
+            uri: kamelet:sabreinventorymark-sink
             parameters:
-              className: com.cetai.milestone3.transition.model.Car
-        - log:
-            id: log-e646
-            message: ${body}
+              sessionurl: http://localhost:8090/mock/createsession
