@@ -1,0 +1,41 @@
+openapi: '3.0.3'
+info:
+  title: Transition Create Pnr Service
+  version: '1.0'
+servers:
+  - url: /transition/
+
+components:
+  schemas:
+    CreateOrderRQ:
+      type: object
+      properties:
+        property:
+          type: integer
+          
+    CreateOrderRS:
+      type: object
+      properties:
+        property:
+          type: integer      
+          
+paths:
+  /create-pnr:
+    post:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateOrderRS"
+      operationId: create-pnr
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRQ"
+
+
+          
+

@@ -1,3 +1,8 @@
+- beans:
+    - name: adjustInventoryProcessor
+      type: com.cetai.kamelet.util.kameletutil.AdjustInventoryRQConverter
+    - name: productPnrProcessor
+      type: com.cetai.kamelet.util.kameletutil.ProductPnrProcessor  
 - route:
     id: route-bcd9
     nodePrefixId: route-578
@@ -5,10 +10,12 @@
       id: from-9b97
       uri: kamelet:timer-source
       parameters:
-        message: hello
+        message: "{\"posCity\":\"SFO\"}"
         period: 2000
         repeatCount: 10
       steps:
         - to:
             id: to-63a9
             uri: kamelet:sabreinventorymark-sink
+            parameters:
+              sessionurl: http://localhost:8090/mock/createsession
