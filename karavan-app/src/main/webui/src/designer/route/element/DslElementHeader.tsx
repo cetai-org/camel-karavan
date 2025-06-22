@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, {CSSProperties, useMemo} from 'react';
+import React, {CSSProperties, useEffect, useMemo} from 'react';
 import {Text, Tooltip,} from '@patternfly/react-core';
 import '../../karavan.css';
 import './DslElement.css';
@@ -26,9 +26,10 @@ import {CamelDisplayUtil} from "karavan-core/lib/api/CamelDisplayUtil";
 import {useDesignerStore, useIntegrationStore} from "../../DesignerStore";
 import {shallow} from "zustand/shallow";
 import {useRouteDesignerHook} from "../useRouteDesignerHook";
-import {AddElementIcon, DeleteElementIcon, InsertElementIcon} from "../../utils/ElementIcons";
-import { RouteConfigurationDefinition} from "karavan-core/lib/model/CamelDefinition";
-import {AutoStartupIcon, ErrorHandlerIcon} from "../../icons/OtherIcons";
+import {AddElementIcon, DeleteElementIcon, InsertElementIcon, CopyElementIcon, DisableStepIcon, EnableStepIcon} from "../../utils/ElementIcons";
+import {RouteConfigurationDefinition} from "karavan-core/lib/model/CamelDefinition";
+import {AutoStartupFalseIcon, ErrorHandlerIcon} from "../../icons/OtherIcons";
+import {usePropertiesHook} from "../../property/usePropertiesHook";
 
 interface Props {
     headerRef: React.RefObject<HTMLDivElement>
@@ -50,43 +51,52 @@ export function DslElementHeader(props: Props) {
         openSelector,
         isKamelet,
         isSourceKamelet,
-        isActionKamelet
+        isActionKamelet,
+        copyPasteStep
     } = useRouteDesignerHook();
+
+    const {onDisableStep, onAutoStartRoute} = usePropertiesHook();
 
     const [integration] = useIntegrationStore((s) => [s.integration], shallow)
 
-    const [selectedUuids, selectedStep, showMoveConfirmation, setShowMoveConfirmation, setMoveElements] =
+    const [selectedStep, showMoveConfirmation, setShowMoveConfirmation, setMoveElements, passedIds, passedRouteId, failed, failedRouteId, suspendedNodeId, isDebugging] =
         useDesignerStore((s) =>
-            [s.selectedUuids, s.selectedStep, s.showMoveConfirmation, s.setShowMoveConfirmation, s.setMoveElements], shallow)
+            [s.selectedStep, s.showMoveConfirmation, s.setShowMoveConfirmation, s.setMoveElements, s.passedNodeIds, s.passedRouteId, s.failed, s.failedRouteId, s.suspendedNodeId, s.isDebugging], shallow)
 
     const step: CamelElement = props.step;
+    const disabled = (step as any).disabled === true;
+    const autoStartup = (step as any).autoStartup === undefined || (step as any).autoStartup === true;
+
+    useEffect(() => {
+        // console.log("DslElementHeader selectedStep", selectedStep, selectedUuids)
+    }, [selectedStep])
 
     function onOpenSelector(evt: React.MouseEvent, showSteps: boolean = true, isInsert: boolean = false) {
         evt.stopPropagation();
         if (isInsert && props.parent) {
             openSelector(props.parent.uuid, props.parent.dslName, showSteps, props.position);
         } else {
-            openSelector(props.step.uuid, props.step.dslName, showSteps);
+            openSelector(step.uuid, step.dslName, showSteps);
         }
     }
 
     function onDeleteElement(evt: React.MouseEvent) {
         evt.stopPropagation();
-        onShowDeleteConfirmation(props.step.uuid);
+        onShowDeleteConfirmation(step.uuid);
     }
 
     function isElementSelected(): boolean {
-        return selectedUuids.includes(props.step.uuid);
+        return (selectedStep as any)?.id === (step as any).id;
     }
 
     function isWide(): boolean {
         return ['RouteConfigurationDefinition', 'RouteTemplateDefinition', 'RouteDefinition', 'ChoiceDefinition', 'MulticastDefinition',
             'LoadBalanceDefinition', 'TryDefinition', 'CircuitBreakerDefinition']
-            .includes(props.step.dslName);
+            .includes(step.dslName);
     }
 
     function isHorizontal(): boolean {
-        return ['MulticastDefinition', 'LoadBalanceDefinition'].includes(props.step.dslName);
+        return ['MulticastDefinition', 'LoadBalanceDefinition'].includes(step.dslName);
     }
 
     function getChildrenInfo(step: CamelElement): [boolean, number, boolean, number, number] {
@@ -111,7 +121,7 @@ export function DslElementHeader(props: Props) {
 
     function getHasWideChildrenElement(childrenInfo: [boolean, number, boolean, number, number]) {
         const [hasStepsField, stepsChildrenCount, hasNonStepsFields, nonStepChildrenCount, childrenCount] = childrenInfo;
-        if (props.step.dslName === 'SetHeadersDefinition') return false;
+        if (step.dslName === 'SetHeadersDefinition') return false;
         else if (isHorizontal() && stepsChildrenCount > 1) return true;
         else if (hasStepsField && stepsChildrenCount > 0 && hasNonStepsFields && nonStepChildrenCount > 0) return true;
         else if (!hasStepsField && hasNonStepsFields && childrenCount > 1) return true;
@@ -123,18 +133,19 @@ export function DslElementHeader(props: Props) {
         const style: CSSProperties = {
             width: isWide() ? "100%" : "",
             fontWeight: isElementSelected() ? "bold" : "normal",
+            borderWidth: getBorderWidth(),
+            borderColor: getBorderColor(),
         };
         return style;
     }
 
     function getAvailableModels() { // TODO: make static list-of-values instead
-        const step: CamelElement = props.step
         return CamelUi.getSelectorModelsForParent(step.dslName, false);
     }
 
     const availableModels = useMemo(
         () => getAvailableModels(),
-        [props.step.dslName]
+        [step.dslName]
     );
 
     function hasElements(rc: RouteConfigurationDefinition): boolean {
@@ -154,7 +165,34 @@ export function DslElementHeader(props: Props) {
         } else {
             classes.push('header-icon-circle');
         }
+        const passed = passedIds.includes((step as any).id);
+        if (step.dslName === 'FromDefinition') {
+        }
+        if (passed) {
+            classes.push("header-icon-border-passed");
+        }
+        if (suspendedNodeId === (step as any).id) {
+            classes.push(failed ? "header-icon-border-failed" : "header-icon-border-current")
+        }
         return classes.join(" ");
+    }
+
+    function getBorderColor() {
+        if (step.dslName === 'RouteDefinition' && (step as any).id === failedRouteId) {
+            return 'var(--pf-v5-global--danger-color--100)';
+        } else if (step.dslName === 'RouteDefinition' && (step as any).id === passedRouteId) {
+            return "var(--pf-v5-global--palette--green-400)";
+        } else {
+            return isElementSelected() ? "var(--step-border-color-selected)" : "var(--step-border-color)";
+        }
+    }
+
+    function getBorderWidth() {
+        if (step.dslName === 'RouteDefinition' && (step as any).id === passedRouteId) {
+            return "2px";
+        } else {
+            return '1px';
+        }
     }
 
     function getHeaderClasses(): string {
@@ -182,7 +220,6 @@ export function DslElementHeader(props: Props) {
     }
 
     function getHeader() {
-        const step: CamelElement = props.step;
         const parent = props.parent;
         const inRouteConfiguration = parent !== undefined && parent.dslName === 'RouteConfigurationDefinition';
         const showAddButton = !['CatchDefinition', 'RouteTemplateDefinition', 'RouteDefinition'].includes(step.dslName) && availableModels.length > 0;
@@ -190,12 +227,15 @@ export function DslElementHeader(props: Props) {
             !['FromDefinition', 'RouteConfigurationDefinition', 'RouteTemplateDefinition', 'RouteDefinition', 'CatchDefinition', 'FinallyDefinition', 'WhenDefinition', 'OtherwiseDefinition'].includes(step.dslName)
             && !inRouteConfiguration;
         const showDeleteButton = !('RouteDefinition' === step.dslName && 'RouteTemplateDefinition' === parent?.dslName);
+        const showCopyButton = !['FromDefinition', 'RouteConfigurationDefinition', 'RouteTemplateDefinition', 'RouteDefinition', 'CatchDefinition', 'FinallyDefinition', 'WhenDefinition', 'OtherwiseDefinition'].includes(step.dslName)
+        const showDisableButton = Object.getOwnPropertyNames(step).includes('disabled')
+        const showAutoStartupButton =  Object.getOwnPropertyNames(step).includes('autoStartup')
         const headerClasses = getHeaderClasses();
-        const childrenInfo = getChildrenInfo(props.step) || [];
+        const childrenInfo = getChildrenInfo(step) || [];
         const hasWideChildrenElement = getHasWideChildrenElement(childrenInfo)
         return (
             <div className={"dsl-element " + headerClasses} style={getHeaderStyle()} ref={props.headerRef}>
-                {!['RouteConfigurationDefinition', 'RouteTemplateDefinition', 'RouteDefinition'].includes(props.step.dslName) &&
+                {!['RouteConfigurationDefinition', 'RouteTemplateDefinition', 'RouteDefinition'].includes(step.dslName) &&
                     <div
                         className={getHeaderIconClasses()}
                         style={isWide() ? {width: ""} : {}}>
@@ -204,10 +244,12 @@ export function DslElementHeader(props: Props) {
                 }
                 {'RouteDefinition' === step.dslName &&
                     <div className={"route-icons"}>
-                        {(step as any).autoStartup !== false && <AutoStartupIcon/>}
+                        {(step as any).autoStartup === false && <AutoStartupFalseIcon/>}
                         {(step as any).errorHandler !== undefined && <ErrorHandlerIcon/>}
                     </div>
                 }
+                {'RouteDefinition' === step.dslName && getAutoStartupButton()}
+
                 {'RouteConfigurationDefinition' === step.dslName &&
                     <div className={"route-icons"}>
                         {(step as any).errorHandler !== undefined && <ErrorHandlerIcon/>}
@@ -220,9 +262,11 @@ export function DslElementHeader(props: Props) {
                     {hasWideChildrenElement && <div className="spacer"/>}
                     {getHeaderTextWithTooltip(step, hasWideChildrenElement)}
                 </div>
-                {showInsertButton && getInsertElementButton()}
-                {showDeleteButton && getDeleteButton()}
-                {showAddButton && getAddElementButton()}
+                {!isDebugging && showInsertButton && getInsertElementButton()}
+                {!isDebugging && showDeleteButton && getDeleteButton()}
+                {!isDebugging && showAddButton && getAddElementButton()}
+                {!isDebugging && showCopyButton && getCopyElementButton()}
+                {!isDebugging && showDisableButton && getDisableStepButton()}
             </div>
         )
     }
@@ -233,9 +277,19 @@ export function DslElementHeader(props: Props) {
         } else if (isKamelet() && step.dslName === 'FromDefinition' && (step as any).uri === 'kamelet:source') {
             return "Source";
         } else {
-            let description: string = (step as any).description;
-            description = description !== undefined && description?.length > 32 ? description.substring(0, 32).concat("...") : description;
-            return description ? description : CamelUi.getElementTitle(props.step);
+            const description: string = (step as any).description;
+            if (description === undefined && step.dslName.startsWith('Set')) {
+                const name = (step as any).name || '';
+                const result = CamelUi.getElementTitle(step).concat(' ', name);
+                return result.length > 32 ? result.substring(0, 32).concat("...") : result;
+            } else if (description === undefined && step.dslName.startsWith('Convert')) {
+                const type = (step as any).type || '';
+                const result = CamelUi.getElementTitle(step).concat(' ', type);
+                return result.length > 32 ? result.substring(0, 32).concat("...") : result;
+            } else {
+                const result = description !== undefined && description?.length > 32 ? description.substring(0, 32).concat("...") : description;
+                return result || CamelUi.getElementTitle(step);
+            }
         }
     }
 
@@ -269,8 +323,8 @@ export function DslElementHeader(props: Props) {
     }
 
     function getHeaderTooltip(): string | React.JSX.Element | undefined {
-        if (CamelUi.isShowExpressionTooltip(props.step)) {
-            const et =  CamelUi.getExpressionTooltip(props.step);
+        if (CamelUi.isShowExpressionTooltip(step)) {
+            const et =  CamelUi.getExpressionTooltip(step);
             const exp = et[1];
             return (
                 <div>
@@ -279,21 +333,72 @@ export function DslElementHeader(props: Props) {
                 </div>
             )
         }
-        if (CamelUi.isShowUriTooltip(props.step)) return  CamelUi.getUriTooltip(props.step);
+        if (CamelUi.isShowUriTooltip(step)) return  CamelUi.getUriTooltip(step);
         return undefined;
     }
 
 
     function getAddElementButton() {
         return (
-            <Tooltip position={"bottom"}
-                     content={<div>{"Add DSL element to " + CamelDisplayUtil.getTitle(props.step)}</div>}>
+            <Tooltip position={"bottom"} content={<div>{"Add DSL element to " + CamelDisplayUtil.getTitle(step)}</div>}>
                 <button
                     type="button"
                     aria-label="Add"
                     onClick={e => onOpenSelector(e, false)}
                     className={"add-element-button"}>
                     <AddElementIcon/>
+                </button>
+            </Tooltip>
+        )
+    }
+    function getCopyElementButton() {
+        return (
+            <Tooltip position={"left"} content={"Copy element"}>
+                <button
+                    type="button"
+                    aria-label="Copy"
+                    onClick={e => {
+                        e.stopPropagation();
+                        if (props.parent) {
+                            copyPasteStep(step, props.parent?.uuid, props.position)
+                        }
+                    }}
+                    className={"copy-element-button"}>
+                    <CopyElementIcon/>
+                </button>
+            </Tooltip>
+        )
+    }
+
+    function getDisableStepButton() {
+        return (
+            <Tooltip position={"right"} content={disabled ? "Enable" : "Disable"}>
+                <button
+                    type="button"
+                    aria-label="Disable"
+                    onClick={e => {
+                        e.stopPropagation();
+                        onDisableStep(step, !disabled)
+                    }}
+                    className={"disable-step-button"}>
+                    {disabled ? <EnableStepIcon/> : <DisableStepIcon/>}
+                </button>
+            </Tooltip>
+        )
+    }
+
+    function getAutoStartupButton() {
+        return (
+            <Tooltip position={"right"} content={autoStartup ? "Disable" : "Enable"}>
+                <button
+                    type="button"
+                    aria-label="AutoStartup"
+                    onClick={e => {
+                        e.stopPropagation();
+                        onAutoStartRoute(step, !autoStartup)
+                    }}
+                    className={"auto-startup-button"}>
+                    {autoStartup ? <DisableStepIcon/> : <EnableStepIcon/>}
                 </button>
             </Tooltip>
         )
@@ -321,7 +426,7 @@ export function DslElementHeader(props: Props) {
     }
 
     const tooltip = getHeaderTooltip();
-    if (tooltip !== undefined && !props.isDragging) {
+    if (tooltip !== undefined && !props.isDragging && !isDebugging) {
         return getHeaderWithTooltip(tooltip);
     }
     return getHeader();

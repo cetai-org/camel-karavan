@@ -25,9 +25,8 @@ import {
     MenuToggle,
     DropdownList,
     DropdownItem, Flex, Popover, FlexItem, Badge, ClipboardCopy,
-    Switch, Tooltip,
+    Switch, Tooltip, Label, Button,
 } from '@patternfly/react-core';
-import '../karavan.css';
 import './DslProperties.css';
 import "@patternfly/patternfly/patternfly.css";
 import {CamelUi} from "../utils/CamelUi";
@@ -47,7 +46,7 @@ interface Props {
 
 export function PropertiesHeader(props: Props) {
 
-    const {saveAsRoute, convertStep} = usePropertiesHook(props.designerType);
+    const {saveAsRoute, convertStep, onPropertyChange} = usePropertiesHook(props.designerType);
     const {openSelectorToReplaceFrom} = useRouteDesignerHook();
 
     const [selectedStep, dark] = useDesignerStore((s) => [s.selectedStep, s.dark], shallow)
@@ -244,7 +243,7 @@ export function PropertiesHeader(props: Props) {
     const component = ComponentApi.findStepComponent(selectedStep);
     const groups = (isFrom || isPoll) ? ['consumer', 'common'] : ['producer', 'common'];
     const isKamelet = CamelUi.isKamelet(selectedStep);
-    const isStepComponent = !isFrom && selectedStep !== undefined && !isKamelet && ['ToDefinition', 'PollDefinition', 'ToDynamicDefinition'].includes(selectedStep?.dslName);
+    const showSwitchers = !isFrom && selectedStep !== undefined && ['ToDefinition', 'PollDefinition', 'ToDynamicDefinition'].includes(selectedStep?.dslName);
 
     function changeStepType(poll: boolean, dynamic: boolean) {
         if (selectedStep) {
@@ -264,7 +263,7 @@ export function PropertiesHeader(props: Props) {
         }
     }
 
-    function getComponentStepTypeSwitch() {
+    function getStepTypeSwitch() {
         const pollSupported = !component?.component.producerOnly;
         return (<div style={{display: 'flex', flexDirection: 'row', justifyContent: 'end', width: '100%', gap: '10px'}}>
                 <Tooltip content='Send messages to a dynamic endpoint evaluated on-demand' position='top-end'>
@@ -280,7 +279,7 @@ export function PropertiesHeader(props: Props) {
                         isReversed
                     />
                 </Tooltip>
-                {pollSupported &&
+                {pollSupported && !isKamelet &&
                     <Tooltip content='Simple Polling Consumer to obtain the additional data' position='top-end'>
                         <Switch
                             id="step-type-poll"
@@ -299,12 +298,25 @@ export function PropertiesHeader(props: Props) {
         )
     }
 
+    function getIdInput() {
+        return (
+            (selectedStep as any)?.id !== undefined
+                ? <Label isEditable color='blue' isCompact onEditComplete={(event, newText) => onPropertyChange("id", newText)}>
+                    {(selectedStep as any)?.id || ''}
+                </Label>
+                : <Button variant="link" onClick={event => onPropertyChange("id", "rc-" + Math.floor(1000 + Math.random() * 9000).toString())}>
+                    Add Id
+                </Button>
+        )
+    }
+
     return (
         <div className="headers">
             <div className="top">
                 <Title headingLevel="h1" size="md">{title}</Title>
+                {getIdInput()}
                 {getHeaderMenu()}
-                {isStepComponent && getComponentStepTypeSwitch()}
+                {showSwitchers && getStepTypeSwitch()}
             </div>
             <Text component={TextVariants.p}>{descriptionLines.at(0)}</Text>
             {descriptionLines.length > 1 && getDescriptionSection()}

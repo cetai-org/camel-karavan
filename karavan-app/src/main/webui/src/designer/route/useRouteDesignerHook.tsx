@@ -47,7 +47,7 @@ export function useRouteDesignerHook() {
             s.width, s.height, s.dark], shallow)
     const [setParentId, setShowSelector, setSelectorTabIndex, setParentDsl, setShowSteps, setSelectedPosition, routeId, setRouteId, isRouteTemplate, setIsRouteTemplate] = useSelectorStore((s) =>
         [s.setParentId, s.setShowSelector, s.setSelectorTabIndex, s.setParentDsl, s.setShowSteps, s.setSelectedPosition, s.routeId, s.setRouteId,
-        s.isRouteTemplate, s.setIsRouteTemplate], shallow)
+            s.isRouteTemplate, s.setIsRouteTemplate], shallow)
 
     function onCommand(command: Command, printerRef: React.MutableRefObject<HTMLDivElement | null>) {
         switch (command.command) {
@@ -179,6 +179,14 @@ export function useRouteDesignerHook() {
         setShiftKeyPressed(false);
         if (event.repeat) {
             window.dispatchEvent(event);
+        }
+    }
+
+    function copyPasteStep(step: CamelElement, parentUuid: string, position: number): void {
+        if (step) {
+            const clone = CamelUtil.cloneStep(step, true);
+            (clone as any).id = (clone as any).stepName + "-" + clone.uuid.substring(0,4);
+            addStep(clone, parentUuid, position + 1);
         }
     }
 
@@ -397,6 +405,6 @@ export function useRouteDesignerHook() {
     return {
         deleteElement, selectElement, moveElement, onShowDeleteConfirmation, onDslSelect, openSelector,
         createRouteConfiguration, onCommand, handleKeyDown, handleKeyUp, unselectElement, isKamelet, isSourceKamelet,
-        isActionKamelet, isSinkKamelet, openSelectorToReplaceFrom, createRouteTemplate
+        isActionKamelet, isSinkKamelet, openSelectorToReplaceFrom, createRouteTemplate, copyPasteStep
     }
 }
