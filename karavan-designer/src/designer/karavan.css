@@ -269,7 +269,7 @@
 .karavan .dsl-page .dsl-page-columns {
     display: block;
     height: 100%;
-    background: #fafafa;
+    background: white;
     padding-bottom: 66px;
 }
 
@@ -320,12 +320,7 @@
     min-width: 0px;
 }
 
-.karavan
-.page
-.main-tabs-wrapper
-.main-tabs
-.pf-v5-c-tabs__link
-.pf-v5-c-tabs__item-icon {
+.karavan .page .main-tabs-wrapper .main-tabs .pf-v5-c-tabs__link .pf-v5-c-tabs__item-icon {
     height: 24px;
     margin-right: 0;
 }
@@ -340,20 +335,6 @@
 .karavan .designer-page .page .main-tabs-wrapper .hide-log {
     white-space: nowrap;
     margin-right: 16px;
-}
-
-/*Properties*/
-.karavan .dsl-page .properties {
-    padding: 10px 10px 10px 10px;
-    background: transparent;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding-bottom: 30px;
 }
 
 .karavan .pf-v5-c-drawer__splitter {
@@ -460,24 +441,6 @@
 
 .pf-v5-c-popover__footer {
     overflow-wrap: anywhere;
-}
-
-/*Beans*/
-.karavan .rest-page .properties .bean-properties .pf-v5-c-form__group-control {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.karavan .rest-page .properties .bean-property {
-    display: flex;
-    flex-direction: row;
-    gap: 3px;
-}
-
-.karavan .rest-page .properties .bean-property .delete-button {
-    padding: 3px;
-    color: #b1b1b7;
 }
 
 /*YAML*/
@@ -616,4 +579,9 @@ input[type="number"]::-webkit-outer-spin-button {
     -moz-appearance: none;
     appearance: none;
     margin: 0;
+}
+
+.resize-handler {
+    background-color: var(--pf-v5-global--BorderColor--100);
+    width: 1px;
 }

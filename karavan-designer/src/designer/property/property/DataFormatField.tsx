@@ -43,6 +43,7 @@ interface Props {
     onDataFormatChange?: (value: DataFormatDefinition) => void
     integration: Integration,
     dark: boolean,
+    expressionEditor: React.ComponentType<any>
 }
 
 export function DataFormatField(props: Props) {
@@ -127,6 +128,7 @@ export function DataFormatField(props: Props) {
                     property={property}
                     value={value ? (value as any)[property.name] : undefined}
                     onPropertyChange={propertyChanged}
+                    expressionEditor={props.expressionEditor}
                 />
             )}
         </>)
@@ -151,6 +153,7 @@ export function DataFormatField(props: Props) {
                     <span className="pf-v5-c-form__label-required" aria-hidden="true"> *</span>
                 </label>
                 <Select
+                    // className='value-changed'
                     variant={SelectVariant.typeahead}
                     aria-label={"dataFormat"}
                     onToggle={() => {

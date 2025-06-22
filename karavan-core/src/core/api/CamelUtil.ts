@@ -20,7 +20,7 @@ import {
     KameletDefinition,
     BeanFactoryDefinition,
     RouteConfigurationDefinition,
-    ToDefinition, RouteTemplateDefinition,
+    ToDefinition, RouteTemplateDefinition, SetVariableDefinition, SetHeaderDefinition,
 } from '../model/CamelDefinition';
 import { KameletApi } from './KameletApi';
 import { KameletModel, Property } from '../model/KameletModels';
@@ -152,7 +152,7 @@ export class CamelUtil {
     static isKameletComponent = (element: CamelElement | undefined): boolean => {
         if (element?.dslName === 'KameletDefinition') {
             return true;
-        } else if (element?.dslName === 'FromDefinition' || element?.dslName === 'ToDefinition') {
+        } else if (element?.dslName === 'FromDefinition' || element?.dslName === 'ToDefinition' || element?.dslName === 'ToDynamicDefinition') {
             const uri: string = (element as any).uri;
             return uri !== undefined && uri.startsWith('kamelet:');
         } else {
@@ -166,7 +166,7 @@ export class CamelUtil {
         } else if (element.dslName === 'ToDefinition' && (element as ToDefinition).uri?.startsWith('kamelet:')) {
             const kameletName = (element as ToDefinition).uri?.replace('kamelet:', '');
             return KameletApi.findKameletByName(kameletName);
-        } else if (['FromDefinition', 'FromDefinition', 'ToDefinition'].includes(element.dslName)) {
+        } else if (['FromDefinition', 'ToDynamicDefinition', 'ToDefinition'].includes(element.dslName)) {
             const uri: string = (element as any).uri;
             return uri !== undefined ? KameletApi.findKameletByUri(uri) : undefined;
         } else {
@@ -207,15 +207,42 @@ export class CamelUtil {
     static checkRequired = (element: CamelElement): [boolean, string[]] => {
         const result: [boolean, string[]] = [true, []];
         const className = element.dslName;
+        const elementAsAny = (element as any);
         let elementMeta = CamelMetadataApi.getCamelModelMetadataByClassName(className);
 
         if (elementMeta === undefined && className.endsWith('Expression')) {
             elementMeta = CamelMetadataApi.getCamelLanguageMetadataByClassName(className);
         }
 
+        if (className === 'SetVariablesDefinition') {
+            if (elementAsAny.variables === undefined || elementAsAny.variables?.length === 0) {
+                result[0] = false;
+                result[1].push(`Variables not set`);
+            } else {
+                elementAsAny.variables.forEach((v: SetVariableDefinition) => {
+                    const r = CamelUtil.checkRequired(v);
+                    if (!r[0]){
+                        result[1].push(...r[1]);
+                    }
+                })
+            }
+        } else if (className.includes('SetHeadersDefinition')) {
+            if (elementAsAny.headers === undefined || elementAsAny.headers?.length === 0) {
+                result[0] = false;
+                result[1].push(`Headers not set`);
+            } else {
+                elementAsAny.headers.forEach((v: SetHeaderDefinition) => {
+                    const r = CamelUtil.checkRequired(v);
+                    if (!r[0]){
+                        result[1].push(...r[1]);
+                    }
+                })
+            }
+        }
+
         if (elementMeta) {
             for (const property of elementMeta.properties.filter(p => p.required)) {
-                const value = (element as any)[property.name];
+                const value = elementAsAny[property.name];
                 if (property.type === 'string' && !property.isArray && (value === undefined || !value.toString().trim())) {
                     result[0] = false;
                     result[1].push(`${property.displayName} is required`);
@@ -259,7 +286,6 @@ export class CamelUtil {
             } else {
                 const kamelet = CamelUtil.getKamelet(element);
                 let allSet = true;
-                const elementAsAny = (element as any);
                 const filledParameters = elementAsAny ? Object.keys(elementAsAny.parameters) : [];
                 const missingParameters =
                     kamelet?.spec.definition.required?.filter(name => !filledParameters.includes(name)) || [];
