@@ -22,8 +22,7 @@ spec:
         - name: "KARAVAN_CAMEL_STATUS_INTERVAL"
           value: "3s"
         - name: "KARAVAN_DEVMODE_IMAGE"
-          value: "ghcr.io/apache/camel-karavan-devmode:4.10.2"
-          #  value: "docker.io/bits1983/camel-karavan-devmode:test4"
+          value: "ghcr.io/apache/camel-karavan-devmode:4.14.2"
         - name: "KARAVAN_GIT_REPOSITORY"
           valueFrom:
             secretKeyRef:
@@ -74,7 +73,7 @@ spec:
             fieldRef:
               apiVersion: ""
               fieldPath: "metadata.namespace"
-        image: "ghcr.io/apache/camel-karavan:4.10.2"
+        image: "ghcr.io/apache/camel-karavan:4.14.2"
         imagePullPolicy: "Always"
         name: "karavan"
         ports:
@@ -91,4 +90,11 @@ spec:
           httpGet:
             path: /q/health/ready
             port: 8080
+        volumeMounts:
+        - name: karavan-cache
+          mountPath: /cache-data
+      volumes:
+      - name: karavan-cache
+        persistentVolumeClaim:
+          claimName: karavan-cache-pvc    
       serviceAccount: "karavan"

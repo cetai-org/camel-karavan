@@ -27,13 +27,17 @@ public final class CamelMetadataGenerator extends AbstractGenerator {
     final static String modelHeader = "karavan-generator/src/main/resources/CamelMetadata.header.ts";
     final static String targetModel = "karavan-core/src/core/model/CamelMetadata.ts";
 
+    public CamelMetadataGenerator(String rootPath) {
+        super(rootPath);
+    }
+
     public static void main(String[] args) throws Exception {
-        CamelMetadataGenerator.generate();
+        CamelMetadataGenerator.generate(args[0]);
         System.exit(0);
     }
 
-    public static void generate() throws Exception {
-        CamelMetadataGenerator g = new CamelMetadataGenerator();
+    public static void generate(String rootPath) throws Exception {
+        CamelMetadataGenerator g = new CamelMetadataGenerator(rootPath);
         g.createCamelDefinitions();
     }
 
@@ -47,7 +51,9 @@ public final class CamelMetadataGenerator extends AbstractGenerator {
         // Generate DataFormats
         JsonObject dataformats = getProperties(definitions, "org.apache.camel.model.dataformat.DataFormatsDefinition");
         camelModel.append("\nexport const DataFormats: [string, string, string][] = [\n");
-        dataformats.getMap().forEach((name, val) -> {
+        var keys = new ArrayList<>(dataformats.getMap().keySet());
+        keys.add("dfdl"); // Fix
+        keys.stream().sorted().forEach((name) -> {
             String json = getMetaDataFormat(name);
             JsonObject model = new JsonObject(json).getJsonObject("model");
             String title = model.getString("title");
@@ -228,7 +234,7 @@ public final class CamelMetadataGenerator extends AbstractGenerator {
                 if (exchangeProperties != null) {
                     exchangeProperties.getMap().forEach((ep, eps) -> {
                         Map<String, String> vals = (HashMap<String, String>) eps;
-                        code.append(String.format("        new ExchangePropertyMeta('%s', '%s', '%s', '%s', '%s'),\n",
+                        code.append(String.format("        new ExchangePropertyMeta('%s', '%s', '%s', '%s', \"%s\"),\n",
                                 ep, vals.get("displayName"), vals.get("label"), vals.get("javaType"), vals.get("description")));
                     });
                 }

@@ -16,11 +16,9 @@
  */
 package org.apache.camel.karavan.generator;
 
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public final class CamelDefinitionGenerator extends AbstractGenerator {
 
@@ -28,13 +26,17 @@ public final class CamelDefinitionGenerator extends AbstractGenerator {
     final static String modelTemplate = "karavan-generator/src/main/resources/CamelDefinition.ts";
     final static String targetModel = "karavan-core/src/core/model/CamelDefinition.ts";
 
+    public CamelDefinitionGenerator(String rootPath) {
+        super(rootPath);
+    }
+
     public static void main(String[] args) throws Exception {
-        CamelDefinitionGenerator.generate();
+        CamelDefinitionGenerator.generate(args[0]);
         System.exit(0);
     }
 
-    public static void generate() throws Exception {
-        CamelDefinitionGenerator g = new CamelDefinitionGenerator();
+    public static void generate(String rootPath) throws Exception {
+        CamelDefinitionGenerator g = new CamelDefinitionGenerator(rootPath);
         g.createCamelDefinitions();
     }
 
@@ -73,7 +75,7 @@ public final class CamelDefinitionGenerator extends AbstractGenerator {
         properties.keySet().stream().sorted(getComparator(stepName)).forEach(name -> {
             JsonObject attributeValue = properties.get(name);
             boolean req = required.contains(name);
-            String generatedValue = ("id".equals(name) && stepName != null && !"routeConfiguration".equals(stepName)) ? "'" + stepName + "-' + uuidv4().substring(0,4)" : null;
+            String generatedValue = ("id".equals(name) && stepName != null && !"routeConfiguration".equals(stepName)) ? "'" + stepName + "' + uuidv4().substring(0,4)" : null;
             String attributeType = getAttributeType(name, attributeValue, req, definitions, generatedValue);
 
             var excludeProperty  = excludeProperty(stepName, name, attributeType);

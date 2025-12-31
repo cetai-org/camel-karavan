@@ -45,6 +45,11 @@ public class AbstractGenerator {
 
     Logger LOGGER = Logger.getLogger(AbstractGenerator.class.getName());
     protected static boolean print = false;
+    protected final String rootPath;
+
+    public AbstractGenerator(String rootPath) {
+        this.rootPath = rootPath;
+    }
 
     protected void print(String line) {
         if (print) {
@@ -95,6 +100,8 @@ public class AbstractGenerator {
             className = "securityDefinitions";
         } else if (className.endsWith("Definition")) {
             className = className.substring(0, className.length() - 10);
+        } else if ("DfdlDataFormat".equals(className)) {
+            return "dfdl";
         } else if (className.endsWith("DataFormat")) {
             return getDataFormatStepNameForClass().get(className);
         } else if (className.endsWith("Expression")) {
@@ -252,13 +259,14 @@ public class AbstractGenerator {
     }
 
     protected void saveFile(String folder, String fileName, String text) {
+        folder = rootPath.concat(File.separator).concat(folder);
         Path path = Paths.get(folder);
         try {
             if (!Files.exists(path)) {
                 Files.createDirectories(path);
             }
             File targetFile = Paths.get(folder, fileName).toFile();
-//            LOGGER.info("Saving file " + targetFile.getAbsolutePath());
+            LOGGER.info("Saving file " + targetFile.getAbsolutePath());
             Files.copy(new ByteArrayInputStream(text.getBytes()), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             e.printStackTrace();
@@ -266,7 +274,7 @@ public class AbstractGenerator {
     }
 
     protected void writeFileText(String filePath, String data) throws IOException {
-        Files.writeString(Paths.get(filePath), data);
+        Files.writeString(Paths.get(rootPath.concat(File.separator).concat(filePath)), data);
     }
 
     protected JsonObject getProperties(JsonObject definitions, String classname) {
