@@ -129,6 +129,36 @@ export class AIPanelWebview {
                 vscode.commands.executeCommand('workbench.action.openSettings', 'karavan.ai');
                 break;
 
+            case 'generateRoute':
+                // Generate route from natural language
+                await this.handleRouteGeneration(message.data);
+                break;
+
+            case 'suggestComponents':
+                // Suggest Camel components
+                await this.handleComponentSuggestion(message.data);
+                break;
+
+            case 'suggestEIPs':
+                // Suggest EIP patterns
+                await this.handleEIPSuggestion(message.data);
+                break;
+
+            case 'suggestExpression':
+                // Suggest Simple language expression
+                await this.handleExpressionSuggestion(message.data);
+                break;
+
+            case 'validateExpression':
+                // Validate Simple expression
+                await this.handleExpressionValidation(message.data);
+                break;
+
+            case 'getComponentDetails':
+                // Get component details and properties
+                await this.handleComponentDetails(message.data);
+                break;
+
             default:
                 console.warn('Unknown message command:', message.command);
         }
@@ -234,6 +264,198 @@ export class AIPanelWebview {
             this.panel.webview.postMessage({
                 command: 'error',
                 data: 'Failed to apply code: ' + (error as Error).message,
+            });
+        }
+    }
+
+    private async handleRouteGeneration(data: any): Promise<void> {
+        const { prompt, useAI } = data;
+        
+        try {
+            const { getRouteGenerator } = await import('../../ai/agent/route-generator');
+            const { getAIBackend } = await import('../../ai/utils/backend');
+            const { gatherCamelContext } = await import('../../ai/utils/context');
+            
+            const generator = getRouteGenerator();
+            
+            if (useAI) {
+                // Use AI backend for route generation
+                const backend = await getAIBackend();
+                const context = await gatherCamelContext();
+                
+                const aiPrompt = generator.buildPrompt({
+                    prompt,
+                    context: {
+                        runtime: context.runtime,
+                        camelVersion: context.camelVersion,
+                        availableComponents: context.availableComponents,
+                    },
+                });
+                
+                // Stream response
+                const messageId = Date.now().toString();
+                let fullResponse = '';
+                
+                for await (const chunk of backend.sendMessage(aiPrompt, [])) {
+                    fullResponse += chunk;
+                    this.panel.webview.postMessage({
+                        command: 'routeGenerationChunk',
+                        data: { messageId, chunk },
+                    });
+                }
+                
+                // Validate and extract YAML
+                const validation = generator.validateYAML(fullResponse);
+                const components = generator.extractComponents(fullResponse);
+                const patterns = generator.extractPatterns(fullResponse);
+                
+                this.panel.webview.postMessage({
+                    command: 'routeGenerated',
+                    data: {
+                        yaml: fullResponse,
+                        components,
+                        patterns,
+                        validation,
+                    },
+                });
+            } else {
+                // Use local intent-based generation
+                const intent = generator.parseIntent(prompt);
+                const yaml = generator.generateFromIntent(intent);
+                const validation = generator.validateYAML(yaml);
+                const components = generator.extractComponents(yaml);
+                const patterns = generator.extractPatterns(yaml);
+                
+                this.panel.webview.postMessage({
+                    command: 'routeGenerated',
+                    data: {
+                        yaml,
+                        components,
+                        patterns,
+                        validation,
+                    },
+                });
+            }
+        } catch (error) {
+            this.panel.webview.postMessage({
+                command: 'error',
+                data: 'Failed to generate route: ' + (error instanceof Error ? error.message : 'Unknown error'),
+            });
+        }
+    }
+
+    private async handleComponentSuggestion(data: any): Promise<void> {
+        const { context } = data;
+        
+        try {
+            const { getComponentSuggester } = await import('../../ai/suggestions/component-suggester');
+            const suggester = getComponentSuggester();
+            
+            const suggestions = suggester.suggestComponents(context || {});
+            
+            this.panel.webview.postMessage({
+                command: 'componentSuggestions',
+                data: { suggestions },
+            });
+        } catch (error) {
+            this.panel.webview.postMessage({
+                command: 'error',
+                data: 'Failed to suggest components: ' + (error instanceof Error ? error.message : 'Unknown error'),
+            });
+        }
+    }
+
+    private async handleEIPSuggestion(data: any): Promise<void> {
+        const { context, scenario } = data;
+        
+        try {
+            const { getEIPSuggester } = await import('../../ai/suggestions/eip-suggester');
+            const suggester = getEIPSuggester();
+            
+            const suggestions = scenario 
+                ? suggester.suggestForProblem(scenario)
+                : suggester.suggestPatterns(context || {});
+            
+            this.panel.webview.postMessage({
+                command: 'eipSuggestions',
+                data: { suggestions },
+            });
+        } catch (error) {
+            this.panel.webview.postMessage({
+                command: 'error',
+                data: 'Failed to suggest EIPs: ' + (error instanceof Error ? error.message : 'Unknown error'),
+            });
+        }
+    }
+
+    private async handleExpressionSuggestion(data: any): Promise<void> {
+        const { context } = data;
+        
+        try {
+            const { getExpressionHelper } = await import('../../ai/assistance/expression-helper');
+            const helper = getExpressionHelper();
+            
+            const suggestions = helper.getExpressionSuggestions(context);
+            
+            this.panel.webview.postMessage({
+                command: 'expressionSuggestions',
+                data: { suggestions },
+            });
+        } catch (error) {
+            this.panel.webview.postMessage({
+                command: 'error',
+                data: 'Failed to suggest expressions: ' + (error instanceof Error ? error.message : 'Unknown error'),
+            });
+        }
+    }
+
+    private async handleExpressionValidation(data: any): Promise<void> {
+        const { expression } = data;
+        
+        try {
+            const { getExpressionHelper } = await import('../../ai/assistance/expression-helper');
+            const helper = getExpressionHelper();
+            
+            const validation = helper.validateExpression(expression);
+            
+            this.panel.webview.postMessage({
+                command: 'expressionValidation',
+                data: { validation },
+            });
+        } catch (error) {
+            this.panel.webview.postMessage({
+                command: 'error',
+                data: 'Failed to validate expression: ' + (error instanceof Error ? error.message : 'Unknown error'),
+            });
+        }
+    }
+
+    private async handleComponentDetails(data: any): Promise<void> {
+        const { componentName } = data;
+        
+        try {
+            const { getComponentSuggester } = await import('../../ai/suggestions/component-suggester');
+            const { getExpressionHelper } = await import('../../ai/assistance/expression-helper');
+            
+            const suggester = getComponentSuggester();
+            const helper = getExpressionHelper();
+            
+            const details = suggester.getComponentDetails(componentName);
+            const properties = helper.getPropertySuggestions(componentName);
+            const example = suggester.generateComponentExample(componentName, 'from');
+            
+            this.panel.webview.postMessage({
+                command: 'componentDetails',
+                data: {
+                    component: details,
+                    properties,
+                    example,
+                },
+            });
+        } catch (error) {
+            this.panel.webview.postMessage({
+                command: 'error',
+                data: 'Failed to get component details: ' + (error instanceof Error ? error.message : 'Unknown error'),
             });
         }
     }
