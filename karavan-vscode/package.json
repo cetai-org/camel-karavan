@@ -53,6 +53,8 @@
     "onCommand:karavan.download-image",
     "onCommand:karavan.openKnowledgebase",
     "onCommand:karavan.reportIssue",
+    "onCommand:karavan.ai.openPanel",
+    "onCommand:karavan.ai.generateRoute",
     "onView:integrations"
   ],
   "main": "./dist/extension.js",
@@ -98,6 +100,48 @@
           "description": "Maximum number of messages to process before stopping",
           "scope": "machine",
           "order": 30
+        },
+        "karavan.ai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI Copilot features",
+          "scope": "machine",
+          "order": 100
+        },
+        "karavan.ai.backend": {
+          "type": "string",
+          "enum": [
+            "github-copilot",
+            "openai",
+            "local-llm",
+            "azure-openai",
+            "aws-bedrock"
+          ],
+          "default": "openai",
+          "description": "AI backend to use for code generation",
+          "scope": "machine",
+          "order": 101
+        },
+        "karavan.ai.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key (will be stored securely)",
+          "scope": "machine",
+          "order": 102
+        },
+        "karavan.ai.localLlmEndpoint": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Local LLM endpoint (e.g., Ollama)",
+          "scope": "machine",
+          "order": 103
+        },
+        "karavan.ai.model": {
+          "type": "string",
+          "default": "gpt-4",
+          "description": "AI model to use (e.g., gpt-4, gpt-3.5-turbo, llama2)",
+          "scope": "machine",
+          "order": 104
         },
         "camel.loggingLevel": {
           "type": "string",
@@ -539,6 +583,23 @@
       {
         "command": "karavan.reportIssue",
         "title": "Report Issue"
+      },
+      {
+        "command": "karavan.ai.openPanel",
+        "title": "Karavan: Open AI Copilot",
+        "icon": "$(sparkle)",
+        "category": "Karavan"
+      },
+      {
+        "command": "karavan.ai.generateRoute",
+        "title": "Karavan: Generate Route with AI",
+        "icon": "$(sparkle)",
+        "category": "Karavan"
+      },
+      {
+        "command": "karavan.ai.suggestComponent",
+        "title": "Karavan: Suggest Component",
+        "category": "Karavan"
       }
     ],
     "menus": {
@@ -591,8 +652,11 @@
         {
           "command": "karavan.generate-rest",
           "when": "resourceExtname == .json || resourceExtname == .yaml",
-          "group": "karavan@9"
-        }
+          "group": "karavan@9"        },
+        {
+          \"command\": \"karavan.ai.generateRoute\",
+          \"when\": \"resourceExtname == .yaml\",
+          \"group\": \"karavan@10\"        }
       ],
       "editor/title": [
         {
@@ -656,6 +720,11 @@
           "command": "integrations.refresh",
           "when": "view == integrations",
           "group": "navigation@5"
+        },
+        {
+          "command": "karavan.ai.openPanel",
+          "when": "view == integrations",
+          "group": "navigation@6"
         },
         {
           "command": "openapi.refresh",
@@ -743,7 +812,10 @@
     "@types/node": "20.19.5",
     "@types/uuid": "11.0.0",
     "@uiw/react-markdown-preview": "5.1.5",
+    "@vscode/webview-ui-toolkit": "^1.4.0",
     "buffer": "6.0.3",
+    "eventsource": "^2.0.2",
+    "js-yaml": "^4.1.0",
     "path-browserify": "^1.0.1",
     "react-resizable-panels": "3.0.6",
     "react-router-dom": "7.9.4",
@@ -752,6 +824,7 @@
     "use-sync-external-store": "1.6.0",
     "usehooks-ts": "3.1.1",
     "uuid": "13.0.0",
+    "xstate": "^4.38.0",
     "zustand": "5.0.8"
   },
   "devDependencies": {
@@ -759,6 +832,7 @@
     "@svgr/webpack": "7.0.0",
     "@types/chai": "^4.3.0",
     "@types/d3-dispatch": "^3.0.7",
+    "@types/eventsource": "^1.1.12",
     "@types/glob": "^7.1.3",
     "@types/mocha": "^8.0.4",
     "@types/node": "24.10.1",

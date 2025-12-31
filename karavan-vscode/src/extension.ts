@@ -24,6 +24,7 @@ import * as jbang from "./jbang";
 import * as utils from "./utils";
 import * as exec from "./exec";
 import { TopologyView } from './topologyView';
+import { activateAiPanel } from './views/ai-panel/activate';
 import vscode from "webview/vscode";
 
 const KARAVAN_LOADED = "karavan:loaded";
@@ -32,6 +33,9 @@ export function activate(context: ExtensionContext) {
 
     const rootPath = (workspace.workspaceFolders && (workspace.workspaceFolders.length > 0))
         ? workspace.workspaceFolders[0].uri.fsPath : undefined;
+
+    // Activate AI Panel features
+    activateAiPanel(context);
 
     // Register views    
     const designer = new DesignerView(context, rootPath);
