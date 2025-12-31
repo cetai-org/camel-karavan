@@ -1,0 +1,138 @@
+# Quick Test Checklist - Print This Out!
+
+## Pre-Test Setup
+- [ ] Watch task running (`npm run watch`)
+- [ ] Extension Development Host launched (F5)
+- [ ] Developer Tools open (Help → Toggle Developer Tools)
+- [ ] Sample file created: `test-route.camel.yaml`
+
+---
+
+## Test 1: Launch ✓
+- [ ] New VS Code window opened
+- [ ] Status bar shows "[Extension Development Host]"
+- [ ] No errors in Terminal
+
+---
+
+## Test 2: AI Panel Opens
+Command: `Ctrl+Shift+P` → `Karavan: Open AI Copilot`
+
+- [ ] Command appears in palette
+- [ ] Panel opens on RIGHT side
+- [ ] Panel title: "Karavan AI Copilot"
+- [ ] No console errors (check DevTools)
+
+---
+
+## Test 3: Login UI
+With panel open:
+
+- [ ] Heading: "Welcome to Karavan AI Copilot"
+- [ ] Option 1: GitHub Copilot (clickable)
+- [ ] Option 2: OpenAI API Key (input + button)
+- [ ] Option 3: Local LLM (clickable)
+- [ ] No layout issues
+- [ ] Input field works (can type)
+
+---
+
+## Test 4: Commands
+Command: `Ctrl+Shift+P` → `Karavan: Generate Route with AI`
+
+- [ ] Input dialog appears
+- [ ] Prompt: "Describe the integration route..."
+- [ ] Placeholder text visible
+- [ ] Enter: `REST API that receives JSON and logs it`
+- [ ] Panel opens after entering
+
+---
+
+## Test 5: Context Menu
+**Important: Right-click in FILE EXPLORER, not editor!**
+
+- [ ] Open `test-route.camel.yaml` in explorer
+- [ ] Right-click on filename in left sidebar
+- [ ] Menu item: "Karavan: Generate Route with AI"
+- [ ] Click opens input dialog
+
+---
+
+## Test 6: Authentication (Optional)
+If you have OpenAI API key:
+
+- [ ] Enter API key in input field
+- [ ] Click "Connect" button
+- [ ] UI transitions (loading?)
+- [ ] Chat interface appears
+- [ ] Has message input area
+- [ ] Has "Send" button
+- [ ] Has "Logout" button
+
+---
+
+## Console Check (DevTools)
+Good messages (✓):
+- `Activating extension...`
+- `Extension activated`
+- `AI Panel received message: ...`
+
+Bad messages (✗):
+- `Error:`
+- `Failed to load`
+- `Uncaught`
+- Red text errors
+
+---
+
+## Issues Found
+
+Critical (blocks testing):
+1. ________________________________
+2. ________________________________
+3. ________________________________
+
+Minor (doesn't block):
+1. ________________________________
+2. ________________________________
+3. ________________________________
+
+UI/Polish:
+1. ________________________________
+2. ________________________________
+3. ________________________________
+
+---
+
+## Screenshots Taken
+- [ ] Login panel
+- [ ] Input dialog
+- [ ] Context menu
+- [ ] Chat interface (if auth worked)
+- [ ] Any errors
+
+---
+
+## Time Tracking
+- Test 1: _____ min
+- Test 2: _____ min
+- Test 3: _____ min
+- Test 4: _____ min
+- Test 5: _____ min
+- Test 6: _____ min
+**Total: _____ minutes**
+
+---
+
+## Overall Result
+- [ ] ✅ All tests passed - Ready for next phase
+- [ ] 🟡 Most tests passed - Minor issues
+- [ ] 🔴 Major issues found - Needs fixes
+
+**Notes:**
+_________________________________
+_________________________________
+_________________________________
+_________________________________
+
+**Tested by:** ____________  **Date:** ____________

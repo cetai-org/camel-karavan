@@ -1,0 +1,14 @@
+# Sample Camel YAML for Testing
+# Use this file to test the context menu feature
+
+- route:
+    id: sample-route
+    from:
+      uri: "timer:tick"
+      parameters:
+        period: 5000
+      steps:
+        - log:
+            message: "Hello from Karavan AI Test!"
+        - to:
+            uri: "log:info"
