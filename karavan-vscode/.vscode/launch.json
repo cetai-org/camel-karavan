@@ -22,11 +22,27 @@
             "preLaunchTask": "npm: watch"
         },
         {
+            "name": "Extension (no other extensions)",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--disable-extensions",
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "/tmp/karavan-test"
+            ],
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "stopOnEntry": false,
+            "showReturnValue": true,
+            "preLaunchTask": "npm: watch"
+        },
+        {
             "name": "Run Web Extension in VS Code",
             "type": "pwa-extensionHost",
             "debugWebWorkerHost": true,
             "request": "launch",
             "args": [
+                
               "--extensionDevelopmentPath=${workspaceFolder}",
               "--extensionDevelopmentKind=web"
             ],
