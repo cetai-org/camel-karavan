@@ -595,11 +595,6 @@
         "title": "Karavan: Generate Route with AI",
         "icon": "$(sparkle)",
         "category": "Karavan"
-      },
-      {
-        "command": "karavan.ai.suggestComponent",
-        "title": "Karavan: Suggest Component",
-        "category": "Karavan"
       }
     ],
     "menus": {
