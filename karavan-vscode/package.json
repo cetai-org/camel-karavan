@@ -595,6 +595,11 @@
         "title": "Karavan: Generate Route with AI",
         "icon": "$(sparkle)",
         "category": "Karavan"
+      },
+      {
+        "command": "karavan.ai.clearToken",
+        "title": "Karavan: Clear Authentication Token",
+        "category": "Karavan"
       }
     ],
     "menus": {

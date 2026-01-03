@@ -63,6 +63,13 @@ export class AIPanelWebview {
             this.disposables
         );
 
+        // Subscribe to state machine changes
+        const stateSubscription = AIStateMachine.service().subscribe((state) => {
+            console.log('AI State changed:', state.value);
+            this.sendStateUpdate();
+        });
+        this.disposables.push({ dispose: () => stateSubscription.unsubscribe() });
+
         // Send initial state to webview
         setTimeout(() => {
             this.sendStateUpdate();
@@ -77,6 +84,15 @@ export class AIPanelWebview {
         console.log('AI Panel received message:', message.command);
 
         switch (message.command) {
+            case 'debug':
+                // Log debug messages from webview
+                if (message.keyEvent) {
+                    console.log('DEBUG - Key event:', JSON.stringify(message.keyEvent));
+                } else if (message.text) {
+                    console.log('DEBUG -', message.text);
+                }
+                break;
+
             case 'getState':
                 this.sendStateUpdate();
                 break;
@@ -84,17 +100,15 @@ export class AIPanelWebview {
             case 'login':
                 const { method, apiKey } = message.data || {};
                 
-                if (method === 'github-copilot') {
-                    AIStateMachine.service().send({ type: 'GITHUB_COPILOT_AUTH' });
-                } else if (method === 'openai' && apiKey) {
+                if (method === 'openai' && apiKey) {
+                    AIStateMachine.service().send({ type: 'LOGIN' });
                     AIStateMachine.service().send({ 
                         type: 'API_KEY_AUTH', 
                         apiKey 
                     });
                 } else if (method === 'local-llm') {
-                    // For local LLM, we don't need API key validation
-                    // Just transition to authenticated state
-                    AIStateMachine.service().send({ type: 'AUTH_SUCCESS', token: { accessToken: 'local-llm' } });
+                    AIStateMachine.service().send({ type: 'LOGIN' });
+                    AIStateMachine.service().send({ type: 'LOCAL_LLM_AUTH', endpoint: 'http://localhost:11434' });
                 }
                 break;
 
@@ -136,11 +150,14 @@ export class AIPanelWebview {
 
     private sendStateUpdate(): void {
         const snapshot = AIStateMachine.getSnapshot();
+        console.log('Sending state update:', JSON.stringify(snapshot.value), 'Context:', snapshot.context);
         this.panel.webview.postMessage({
             command: 'stateUpdate',
-            state: snapshot.value,
-            context: snapshot.context,
-            defaultPrompt: this.defaultPrompt,
+            data: {
+                state: snapshot.value,
+                context: snapshot.context,
+                defaultPrompt: this.defaultPrompt,
+            },
         });
     }
 
@@ -148,23 +165,39 @@ export class AIPanelWebview {
         const { content, conversationHistory } = data;
         
         try {
+            console.log('Handling chat message:', content);
+            
             // Import backend utilities
-            const { getAIBackend } = await import('../../ai/utils/backend');
+            const { getAIBackend, resetBackend } = await import('../../ai/utils/backend');
             const { gatherCamelContext, buildPromptContext, getCurrentDiagnostics } = await import('../../ai/utils/context');
             
-            // Get the current AI backend
-            const backend = await getAIBackend();
+            // Reset backend to ensure fresh initialization with correct config
+            resetBackend();
+            
+            // Get the current login method from state machine
+            const snapshot = AIStateMachine.getSnapshot();
+            const loginMethod = snapshot.context.loginMethod;
+            console.log('Login method:', loginMethod);
+            
+            // Get the current AI backend using the login method
+            console.log('Getting AI backend...');
+            const backend = await getAIBackend(loginMethod);
+            console.log('Backend obtained:', backend.name);
             
             // Gather context
             const camelContext = await gatherCamelContext();
             const diagnostics = getCurrentDiagnostics();
             const contextString = buildPromptContext(camelContext, diagnostics);
             
+            console.log('Camel context gathered:', camelContext);
+            console.log('Context string:', contextString);
+            
             // Generate unique message ID for streaming
             const messageId = Date.now().toString();
             
             // Stream response
             try {
+                console.log('Calling backend.sendMessage...');
                 for await (const chunk of backend.sendMessage(content, conversationHistory || [], contextString)) {
                     this.panel.webview.postMessage({
                         command: 'streamChunk',
@@ -181,12 +214,14 @@ export class AIPanelWebview {
                     data: { messageId },
                 });
             } catch (error) {
+                console.error('Error in sendMessage:', error);
                 this.panel.webview.postMessage({
                     command: 'error',
                     data: error instanceof Error ? error.message : 'Failed to get AI response',
                 });
             }
         } catch (error) {
+            console.error('Error in handleChatMessage:', error);
             this.panel.webview.postMessage({
                 command: 'error',
                 data: error instanceof Error ? error.message : 'Failed to initialize AI backend',
@@ -309,7 +344,7 @@ export class AIPanelWebview {
             
             switch (message.command) {
                 case 'stateUpdate':
-                    currentState = message;
+                    currentState = message.data;  // Extract the data property!
                     render();
                     break;
                 case 'streamChunk':
@@ -364,14 +399,14 @@ export class AIPanelWebview {
         }
 
         function render() {
-            if (!currentState) {
+            if (!currentState || !currentState.state) {
                 root.innerHTML = renderLoading('Loading AI Copilot...');
                 return;
             }
 
             const state = typeof currentState.state === 'string' 
                 ? currentState.state 
-                : Object.keys(currentState.state)[0];
+                : (currentState.state && Object.keys(currentState.state)[0]) || 'Unauthenticated';
 
             switch (state) {
                 case 'Initialize':
@@ -420,17 +455,6 @@ export class AIPanelWebview {
                     </div>
                     
                     <div style="width: 100%; display: flex; flex-direction: column; gap: 16px;">
-                        <div style="padding: 20px; background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px;">
-                            <button id="copilot-btn" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                                <i class="codicon codicon-github" style="font-size: 24px;"></i>
-                                <div style="flex: 1; text-align: left;">
-                                    <div style="font-weight: 600;">GitHub Copilot</div>
-                                    <div style="font-size: 12px; opacity: 0.8;">Recommended if you have GitHub Copilot</div>
-                                </div>
-                                <i class="codicon codicon-arrow-right"></i>
-                            </button>
-                        </div>
-                        
                         <div style="padding: 20px; background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                                 <i class="codicon codicon-key" style="font-size: 18px;"></i>
@@ -520,10 +544,6 @@ export class AIPanelWebview {
         }
 
         function setupLoginListeners() {
-            document.getElementById('copilot-btn')?.addEventListener('click', () => {
-                vscode.postMessage({ command: 'login', data: { method: 'github-copilot' } });
-            });
-            
             document.getElementById('api-key-btn')?.addEventListener('click', () => {
                 const apiKey = document.getElementById('api-key-input').value;
                 vscode.postMessage({ command: 'login', data: { method: 'openai', apiKey } });
@@ -577,61 +597,6 @@ export class AIPanelWebview {
         // Request initial state
         vscode.postMessage({ command: 'getState' });
         `;
-    }
-
-        function authWithGitHubCopilot() {
-            vscode.postMessage({ command: 'githubCopilotAuth' });
-        }
-
-        function authWithApiKey() {
-            const apiKey = document.getElementById('apiKey').value;
-            if (apiKey) {
-                vscode.postMessage({ command: 'apiKeyAuth', apiKey });
-            }
-        }
-
-        function authWithLocalLLM() {
-            vscode.postMessage({ command: 'localLlmAuth' });
-        }
-
-        function sendMessage() {
-            const input = document.getElementById('chatInput');
-            if (input && input.value.trim()) {
-                const text = input.value.trim();
-                messages.push({ role: 'user', content: text });
-                vscode.postMessage({ command: 'sendMessage', text });
-                input.value = '';
-                render();
-            }
-        }
-
-        function logout() {
-            vscode.postMessage({ command: 'logout' });
-            messages = [];
-        }
-
-        // Handle messages from extension
-        window.addEventListener('message', event => {
-            const message = event.data;
-            
-            if (message.command === 'stateUpdate') {
-                currentState = typeof message.state === 'object' ? 'Authenticating' : message.state;
-                render();
-            } else if (message.command === 'chatResponse') {
-                messages.push(message.message);
-                render();
-                const messagesDiv = document.getElementById('messages');
-                if (messagesDiv) {
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                }
-            }
-        });
-
-        // Request initial state
-        vscode.postMessage({ command: 'getState' });
-    </script>
-</body>
-</html>`;
     }
 
     public dispose(): void {

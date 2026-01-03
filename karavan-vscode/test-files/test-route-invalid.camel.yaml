@@ -1,0 +1,16 @@
+# Invalid YAML - Test Error Handling
+apiVersion: camel.apache.org/v1
+kind: Integration
+metadata:
+  name: invalid-yaml-test
+spec:
+  flows:
+    - route:
+        id: broken-route
+        from:
+          uri: rest:post:/api/test
+        steps  # Missing colon - YAML syntax error
+          - log:
+              message: "This will cause a parsing error"
+          - to:
+              uri: kafka:test-topic

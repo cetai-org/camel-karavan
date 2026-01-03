@@ -1,0 +1,59 @@
+# Complex Integration Pattern - Test Fixture
+apiVersion: camel.apache.org/v1
+kind: Integration
+metadata:
+  name: complex-integration-pattern
+spec:
+  flows:
+    - route:
+        id: complex-route
+        from:
+          uri: file://{{user.home}}/data/input
+          parameters:
+            noop: "true"
+            delay: 5000
+          steps:
+            - to:
+                uri: direct:validate
+    
+    - route:
+        id: validate-route
+        from:
+          uri: direct:validate
+          steps:
+            - choice:
+                whens:
+                  - simple: "${body} contains 'error'"
+                    steps:
+                      - log:
+                          message: "Error detected: ${body}"
+                      - to:
+                          uri: direct:error-handler
+                  - simple: "${body} contains 'success'"
+                    steps:
+                      - log:
+                          message: "Success message: ${body}"
+                      - to:
+                          uri: kafka:success-topic?brokers=localhost:9092
+            - otherwise:
+                steps:
+                  - log:
+                      message: "Unknown message: ${body}"
+                  - to:
+                      uri: direct:default-handler
+    
+    - route:
+        id: error-handler-route
+        from:
+          uri: direct:error-handler
+          steps:
+            - to:
+                uri: kafka:error-topic?brokers=localhost:9092
+
+    - route:
+        id: default-handler-route
+        from:
+          uri: direct:default-handler
+          steps:
+            - to:
+                uri: http://localhost:8080/default

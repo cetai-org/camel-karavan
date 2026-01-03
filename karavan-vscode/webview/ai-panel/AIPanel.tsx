@@ -35,6 +35,7 @@ export const AIPanel: React.FC = () => {
 
             switch (message.command) {
                 case 'stateUpdate':
+                    console.log('Received state update:', message.data);
                     setState(message.data);
                     setIsLoading(false);
                     break;
@@ -53,6 +54,7 @@ export const AIPanel: React.FC = () => {
 
     const renderContent = () => {
         if (isLoading || !state) {
+            console.log('Loading state - isLoading:', isLoading, 'state:', state);
             return (
                 <div className="loading-container">
                     <div className="spinner"></div>
@@ -61,9 +63,19 @@ export const AIPanel: React.FC = () => {
             );
         }
 
+        console.log('Rendering with state:', state);
+        if (!state.state) {
+            console.error('State property is missing:', state);
+            return (
+                <div className="loading-container">
+                    <p>Error: Invalid state</p>
+                </div>
+            );
+        }
+        
         const currentState = typeof state.state === 'string' 
             ? state.state 
-            : Object.keys(state.state)[0];
+            : (state.state && Object.keys(state.state)[0]) || 'Unauthenticated';
 
         switch (currentState) {
             case 'Initialize':

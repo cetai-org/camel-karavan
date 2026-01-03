@@ -99,13 +99,21 @@ export const AIChat: React.FC = () => {
     };
 
     const handleStreamChunk = (data: { messageId: string; chunk: string }) => {
+        console.log('AIChat - handleStreamChunk:', { 
+            messageId: data.messageId, 
+            chunkLength: data.chunk.length,
+            chunk: data.chunk.substring(0, 100)
+        });
+        
         setMessages(prev => {
             const existingMessage = prev.find(m => m.id === data.messageId);
             
             if (existingMessage) {
+                const updatedContent = existingMessage.content + data.chunk;
+                console.log('AIChat - Updated message content length:', updatedContent.length);
                 return prev.map(m =>
                     m.id === data.messageId
-                        ? { ...m, content: m.content + data.chunk, isStreaming: true }
+                        ? { ...m, content: updatedContent, isStreaming: true }
                         : m
                 );
             } else {
@@ -179,7 +187,11 @@ export const AIChat: React.FC = () => {
                 </div>
             </div>
 
-            <MessageList messages={messages} isLoading={isLoading} />
+            <MessageList 
+                messages={messages} 
+                isLoading={isLoading}
+                onApplyCode={handleApplyCode}
+            />
 
             <ChatInput
                 onSend={handleSendMessage}

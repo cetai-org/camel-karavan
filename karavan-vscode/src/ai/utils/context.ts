@@ -23,15 +23,39 @@ import { RouteContext, ProjectMetadata } from '../../webview/ai-panel/types';
  * Gather context about the current Camel project and file
  */
 export async function gatherCamelContext(): Promise<RouteContext> {
-    const editor = vscode.window.activeTextEditor;
+    // Try to get active editor first, fallback to visible editors
+    let editor = vscode.window.activeTextEditor;
     
     if (!editor) {
+        // If no active editor (likely because AI panel has focus), 
+        // look for the first visible YAML editor
+        const visibleEditors = vscode.window.visibleTextEditors;
+        console.log('gatherCamelContext - No active editor, checking visible editors:', visibleEditors.length);
+        
+        editor = visibleEditors.find(e => 
+            e.document.fileName.endsWith('.camel.yaml') || 
+            e.document.fileName.endsWith('.yaml')
+        );
+        
+        if (!editor && visibleEditors.length > 0) {
+            // If no YAML file, use the first visible editor
+            editor = visibleEditors[0];
+        }
+    }
+    
+    console.log('gatherCamelContext - Active editor:', editor ? editor.document.fileName : 'none');
+    
+    if (!editor) {
+        console.log('gatherCamelContext - No active editor found');
         return { availableComponents: [] };
     }
 
     const document = editor.document;
     const fileName = document.fileName;
     const isYaml = fileName.endsWith('.camel.yaml') || fileName.endsWith('.yaml');
+
+    console.log('gatherCamelContext - fileName:', fileName);
+    console.log('gatherCamelContext - isYaml:', isYaml);
 
     const context: RouteContext = {
         currentFile: fileName,
@@ -43,7 +67,9 @@ export async function gatherCamelContext(): Promise<RouteContext> {
     if (isYaml) {
         try {
             const content = document.getText();
+            console.log('gatherCamelContext - Document content length:', content.length);
             const parsed = yaml.load(content) as any;
+            console.log('gatherCamelContext - Parsed YAML:', parsed);
             
             // Extract current route information
             if (parsed && Array.isArray(parsed)) {
@@ -51,6 +77,8 @@ export async function gatherCamelContext(): Promise<RouteContext> {
             } else if (parsed && parsed.route) {
                 context.currentRoute = parsed.route;
             }
+
+            console.log('gatherCamelContext - currentRoute set:', !!context.currentRoute);
 
             // Get cursor position context
             const position = editor.selection.active;

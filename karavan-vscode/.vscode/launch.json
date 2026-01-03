@@ -15,6 +15,7 @@
             "type": "extensionHost",
             "request": "launch",
             "runtimeExecutable": "${execPath}",
+            "userDataDir": "${workspaceFolder}/.vscode/.karavan-devhost",
             "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
             "outFiles": ["${workspaceFolder}/dist/extension.js"],
             "stopOnEntry": false,
@@ -26,8 +27,25 @@
             "type": "extensionHost",
             "request": "launch",
             "runtimeExecutable": "${execPath}",
+            "userDataDir": "${workspaceFolder}/.vscode/.karavan-devhost",
             "args": [
                 "--disable-extensions",
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "/tmp/karavan-test"
+            ],
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "stopOnEntry": false,
+            "showReturnValue": true,
+            "preLaunchTask": "npm: watch"
+        },
+        {
+            "name": "Extension (little extensions)",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "userDataDir": "${workspaceFolder}/.vscode/.karavan-devhost",
+            "args": [
+                
                 "--extensionDevelopmentPath=${workspaceFolder}",
                 "/tmp/karavan-test"
             ],

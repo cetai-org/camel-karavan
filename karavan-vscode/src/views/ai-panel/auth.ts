@@ -55,6 +55,31 @@ export async function clearToken(): Promise<void> {
         throw new Error('Secret storage not initialized');
     }
     await secretStorage.delete(TOKEN_KEY);
+    await secretStorage.delete(LOGIN_METHOD_KEY);
+}
+
+/**
+ * Store login method
+ */
+export async function storeLoginMethod(method: LoginMethod): Promise<void> {
+    if (!secretStorage) {
+        throw new Error('Secret storage not initialized');
+    }
+    await secretStorage.store(LOGIN_METHOD_KEY, method);
+}
+
+/**
+ * Get stored login method
+ */
+export async function getStoredLoginMethod(): Promise<LoginMethod | undefined> {
+    if (!secretStorage) {
+        throw new Error('Secret storage not initialized');
+    }
+    const method = await secretStorage.get(LOGIN_METHOD_KEY);
+    if (method && ['openai', 'local-llm', 'aws-bedrock', 'azure-openai'].includes(method)) {
+        return method as LoginMethod;
+    }
+    return undefined;
 }
 
 /**
@@ -90,35 +115,6 @@ export async function validateApiKey(apiKey: string): Promise<AIUserToken> {
         };
     } catch (error) {
         throw new Error('Failed to validate OpenAI API key: ' + (error as Error).message);
-    }
-}
-
-/**
- * Validate GitHub Copilot authentication
- */
-export async function validateGitHubCopilot(): Promise<AIUserToken> {
-    try {
-        // Check if GitHub Copilot extension is installed and active
-        const copilotExtension = vscode.extensions.getExtension('GitHub.copilot');
-        
-        if (!copilotExtension) {
-            throw new Error('GitHub Copilot extension is not installed. Please install it first.');
-        }
-
-        if (!copilotExtension.isActive) {
-            await copilotExtension.activate();
-        }
-
-        // For now, we'll use a placeholder token
-        // In a real implementation, you'd integrate with Copilot's API
-        const token = 'github-copilot-active';
-        await storeToken(token);
-
-        return {
-            accessToken: token,
-        };
-    } catch (error) {
-        throw new Error('Failed to authenticate with GitHub Copilot: ' + (error as Error).message);
     }
 }
 
@@ -180,10 +176,12 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export function getAIConfig() {
     const config = vscode.workspace.getConfiguration('karavan.ai');
-    return {
+    const result = {
         enabled: config.get<boolean>('enabled', true),
         backend: config.get<LoginMethod>('backend', 'openai'),
         model: config.get<string>('model', 'gpt-4'),
         localLlmEndpoint: config.get<string>('localLlmEndpoint', 'http://localhost:11434'),
     };
+    console.log('getAIConfig() returning:', JSON.stringify(result, null, 2));
+    return result;
 }

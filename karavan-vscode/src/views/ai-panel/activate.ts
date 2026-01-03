@@ -17,7 +17,7 @@
 
 import * as vscode from 'vscode';
 import { openAIWebview, closeAIWebview, AIStateMachine } from './aiMachine';
-import { initializeAuth } from './auth';
+import { initializeAuth, clearToken } from './auth';
 
 export function activateAiPanel(context: vscode.ExtensionContext): void {
     // Initialize authentication
@@ -71,6 +71,32 @@ export function activateAiPanel(context: vscode.ExtensionContext): void {
                     text: `Suggest Camel components for: ${useCase}`,
                     command: 'suggestComponent',
                 });
+            }
+        })
+    );
+
+    // Register debug command to clear stored authentication token
+    context.subscriptions.push(
+        vscode.commands.registerCommand('karavan.ai.clearToken', async () => {
+            try {
+                // Close the current panel
+                closeAIWebview();
+                
+                // Clear the token
+                await clearToken();
+                
+                // Reset the state machine
+                AIStateMachine.service().send({ type: 'DISPOSE' });
+                
+                // Wait a moment for state transitions
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Reopen the panel to show login
+                openAIWebview();
+                
+                vscode.window.showInformationMessage('Authentication cleared. Login panel is open.');
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to clear token: ${(error as Error).message}`);
             }
         })
     );

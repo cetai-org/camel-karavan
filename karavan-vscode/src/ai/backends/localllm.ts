@@ -17,6 +17,8 @@
 
 import { AIBackend, AIBackendConfig } from './base';
 import { ChatMessage } from '../../../webview/ai-panel/types';
+import * as http from 'http';
+import { URL } from 'url';
 
 /**
  * Local LLM backend implementation (Ollama, LM Studio, etc.)
@@ -44,15 +46,30 @@ export class LocalLLMBackend implements AIBackend {
     }
 
     public async isAvailable(): Promise<boolean> {
-        try {
-            const response = await fetch(`${this.baseUrl}/api/tags`, {
-                method: 'GET',
-            });
-            return response.ok;
-        } catch (error) {
-            console.error('Local LLM availability check failed:', error);
-            return false;
-        }
+        return new Promise((resolve) => {
+            try {
+                const url = new URL(`${this.baseUrl}/api/tags`);
+                const req = http.get({
+                    hostname: url.hostname,
+                    port: url.port || 11434,
+                    path: url.pathname,
+                    method: 'GET',
+                }, (res) => {
+                    resolve(res.statusCode === 200);
+                });
+                req.on('error', (error) => {
+                    console.error('Local LLM availability check failed:', error);
+                    resolve(false);
+                });
+                req.setTimeout(5000, () => {
+                    req.destroy();
+                    resolve(false);
+                });
+            } catch (error) {
+                console.error('Local LLM availability check failed:', error);
+                resolve(false);
+            }
+        });
     }
 
     public async *sendMessage(
@@ -61,58 +78,98 @@ export class LocalLLMBackend implements AIBackend {
         context?: any
     ): AsyncIterableIterator<string> {
         const prompt = this.buildPrompt(message, history, context);
+        const url = new URL(`${this.baseUrl}/api/generate`);
+        
+        const postData = JSON.stringify({
+            model: this.config.model,
+            prompt,
+            stream: true,
+            options: {
+                temperature: this.config.temperature,
+            },
+        });
 
-        // Ollama API format
-        const response = await fetch(`${this.baseUrl}/api/generate`, {
+        console.log(`Sending request to ${url.href} with model: ${this.config.model}`);
+        console.log(`Request details - hostname: ${url.hostname}, port: ${url.port}, path: ${url.pathname}`);
+
+        const chunks: string[] = [];
+        let responseComplete = false;
+        let hasError: Error | null = null;
+        
+        const req = http.request({
+            hostname: url.hostname,
+            port: url.port || 11434,
+            path: url.pathname,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData),
             },
-            body: JSON.stringify({
-                model: this.config.model,
-                prompt,
-                stream: true,
-                options: {
-                    temperature: this.config.temperature,
-                },
-            }),
-        });
+        }, (res) => {
+            console.log(`Response status: ${res.statusCode}`);
+            if (res.statusCode !== 200) {
+                hasError = new Error(`Local LLM error: ${res.statusCode} ${res.statusMessage}`);
+                responseComplete = true;
+                return;
+            }
 
-        if (!response.ok) {
-            throw new Error(`Local LLM error: ${response.status} ${response.statusText}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-            throw new Error('Response body is not readable');
-        }
-
-        const decoder = new TextDecoder();
-
-        try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n').filter(line => line.trim());
-
+            let buffer = '';
+            
+            res.on('data', (chunk: Buffer) => {
+                buffer += chunk.toString();
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                
                 for (const line of lines) {
+                    if (!line.trim()) continue;
+                    
                     try {
                         const json = JSON.parse(line);
                         if (json.response) {
-                            yield json.response;
-                        }
-                        if (json.done) {
-                            return;
+                            chunks.push(json.response);
                         }
                     } catch (error) {
                         console.error('Failed to parse JSON:', line);
                     }
                 }
+            });
+            
+            res.on('end', () => {
+                if (buffer.trim()) {
+                    try {
+                        const json = JSON.parse(buffer);
+                        if (json.response) {
+                            chunks.push(json.response);
+                        }
+                    } catch (error) {
+                        console.error('Failed to parse final JSON:', buffer);
+                    }
+                }
+                responseComplete = true;
+            });
+        });
+
+        req.on('error', (error) => {
+            hasError = new Error(`Local LLM request failed: ${error.message}`);
+            responseComplete = true;
+        });
+
+        req.write(postData);
+        req.end();
+        
+        // Yield chunks as they come in
+        while (!responseComplete || chunks.length > 0) {
+            if (hasError) {
+                throw hasError;
             }
-        } finally {
-            reader.releaseLock();
+            
+            while (chunks.length > 0) {
+                yield chunks.shift()!;
+            }
+            
+            if (!responseComplete) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
         }
     }
 

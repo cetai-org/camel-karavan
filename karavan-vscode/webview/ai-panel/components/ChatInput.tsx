@@ -18,6 +18,9 @@
 import * as React from 'react';
 import './ChatInput.css';
 
+declare const acquireVsCodeApi: any;
+const vscode = acquireVsCodeApi();
+
 interface ChatInputProps {
     onSend: (message: string) => void;
     disabled?: boolean;
@@ -30,10 +33,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     placeholder = "Ask AI to help with Camel routes..." 
 }) => {
     const [input, setInput] = React.useState('');
+    const [isComposing, setIsComposing] = React.useState(false);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSendClick = () => {
         if (input.trim() && !disabled) {
             onSend(input.trim());
             setInput('');
@@ -43,10 +46,43 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        // During composition (IME), don't interfere
+        if (isComposing) return;
+        
+        // Only handle Enter key
+        if (e.key !== 'Enter') {
+            return;
+        }
+        
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+        
+        // Try to detect shift - check if this is a "regular" enter or a modified enter
+        // In VS Code webviews, shiftKey detection is unreliable, so we'll use a different approach
+        // Check the raw keyboard code to differentiate
+        const isModifiedEnter = e.shiftKey || e.ctrlKey || e.altKey || e.metaKey;
+        
+        // If any modifier is pressed, try to insert newline
+        if (isModifiedEnter) {
             e.preventDefault();
-            handleSubmit(e);
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const newValue = input.substring(0, start) + '\n' + input.substring(end);
+            setInput(newValue);
+            
+            // Move cursor after newline
+            setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = start + 1;
+            }, 0);
+            return;
+        }
+        
+        // Plain Enter = send (with no modifiers)
+        // Be very strict: only send if NONE of the modifiers are true
+        if (!e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            handleSendClick();
         }
     };
 
@@ -59,8 +95,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
     };
 
+    const handleCompositionStart = () => {
+        setIsComposing(true);
+    };
+
+    const handleCompositionEnd = () => {
+        setIsComposing(false);
+    };
+
     return (
-        <form className="chat-input-form" onSubmit={handleSubmit}>
+        <div className="chat-input-form">
             <div className="chat-input-container">
                 <textarea
                     ref={textareaRef}
@@ -68,14 +112,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     value={input}
                     onChange={handleInput}
                     onKeyDown={handleKeyDown}
+                    onCompositionStart={handleCompositionStart}
+                    onCompositionEnd={handleCompositionEnd}
                     placeholder={placeholder}
                     disabled={disabled}
                     rows={1}
                 />
                 <button
-                    type="submit"
+                    type="button"
                     className="chat-send-button"
                     disabled={disabled || !input.trim()}
+                    onClick={handleSendClick}
                     title="Send message (Enter)"
                 >
                     <i className="codicon codicon-send"></i>
@@ -84,6 +131,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <div className="chat-input-hint">
                 Press <kbd>Enter</kbd> to send, <kbd>Shift+Enter</kbd> for new line
             </div>
-        </form>
+        </div>
     );
 };

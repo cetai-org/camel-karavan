@@ -24,6 +24,7 @@ import * as jbang from "./jbang";
 import * as utils from "./utils";
 import * as exec from "./exec";
 import { TopologyView } from './topologyView';
+import { activateAiPanel } from './views/ai-panel/activate';
 
 const KARAVAN_LOADED = "karavan:loaded";
 
@@ -31,6 +32,9 @@ export function activate(context: ExtensionContext) {
 
     const rootPath = (workspace.workspaceFolders && (workspace.workspaceFolders.length > 0))
         ? workspace.workspaceFolders[0].uri.fsPath : undefined;
+
+    // Activate AI Panel features
+    activateAiPanel(context);
 
     // Register views    
     const designer = new DesignerView(context, rootPath);
@@ -169,15 +173,6 @@ export function activate(context: ExtensionContext) {
     // Create issue command
     commands.registerCommand('karavan.reportIssue', () => {
         env.openExternal(Uri.parse('https://github.com/apache/camel-karavan/issues/new?title=[VS+Code]New+report&template=issue_template.md'));
-    });
-
-    // AI Panel commands (stubs - implementation not available in this build)
-    commands.registerCommand('karavan.ai.openPanel', () => {
-        window.showInformationMessage('AI Copilot panel is not available in this build.');
-    });
-
-    commands.registerCommand('karavan.ai.generateRoute', () => {
-        window.showInformationMessage('AI route generation is not available in this build.');
     });
 }
 

@@ -23,9 +23,10 @@ import './MessageList.css';
 interface MessageListProps {
     messages: ChatMessage[];
     isLoading?: boolean;
+    onApplyCode?: (code: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, onApplyCode }) => {
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -50,14 +51,17 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
 
         // Parse content for code blocks
         const parts = parseContentWithCodeBlocks(content);
+        console.log('MessageList - Parsed parts:', parts);
 
         return parts.map((part, index) => {
             if (part.type === 'code') {
+                console.log('Rendering CodeBlock:', part);
                 return (
                     <CodeBlock
                         key={index}
                         code={part.content}
                         language={part.language || 'yaml'}
+                        onApply={onApplyCode}
                     />
                 );
             }
@@ -151,11 +155,21 @@ interface ContentPart {
 
 function parseContentWithCodeBlocks(content: string): ContentPart[] {
     const parts: ContentPart[] = [];
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    // Updated regex to handle code blocks with or without newline after language
+    const codeBlockRegex = /```(\w+)?\n?([\s\S]*?)```/g;
     let lastIndex = 0;
     let match;
+    
+    console.log('parseContentWithCodeBlocks - Input content:', content.substring(0, 200));
+    console.log('parseContentWithCodeBlocks - Testing regex...');
 
     while ((match = codeBlockRegex.exec(content)) !== null) {
+        console.log('Found code block match:', {
+            language: match[1],
+            contentLength: match[2].length,
+            content: match[2].substring(0, 100)
+        });
+        
         // Add text before code block
         if (match.index > lastIndex) {
             const textContent = content.substring(lastIndex, match.index).trim();
@@ -174,6 +188,8 @@ function parseContentWithCodeBlocks(content: string): ContentPart[] {
         lastIndex = match.index + match[0].length;
     }
 
+    console.log('parseContentWithCodeBlocks - Final parts count:', parts.length);
+    
     // Add remaining text
     if (lastIndex < content.length) {
         const textContent = content.substring(lastIndex).trim();
@@ -184,6 +200,7 @@ function parseContentWithCodeBlocks(content: string): ContentPart[] {
 
     // If no code blocks found, return entire content as text
     if (parts.length === 0) {
+        console.log('No code blocks found, returning as text');
         parts.push({ type: 'text', content });
     }
 

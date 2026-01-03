@@ -1,0 +1,18 @@
+# Simple REST to Kafka Route - Test Fixture
+apiVersion: camel.apache.org/v1
+kind: Integration
+metadata:
+  name: simple-rest-kafka
+spec:
+  flows:
+    - route:
+        id: rest-to-kafka-route
+        from:
+          uri: rest:post:/api/orders
+          steps:
+            - log:
+                message: "Received order: ${body}"
+            - marshal:
+                json: {}
+            - to:
+                uri: kafka:orders?brokers=localhost:9092

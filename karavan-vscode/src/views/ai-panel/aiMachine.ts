@@ -17,10 +17,10 @@
 
 import { createMachine, assign, interpret, Interpreter } from 'xstate';
 import { AIPanelWebview } from './webview';
-import { getAccessToken, validateApiKey, validateGitHubCopilot, clearToken } from './auth';
+import { getAccessToken, validateApiKey, clearToken, storeLoginMethod, getStoredLoginMethod } from './auth';
 import * as vscode from 'vscode';
 
-export type LoginMethod = 'github-copilot' | 'openai' | 'local-llm' | 'aws-bedrock' | 'azure-openai';
+export type LoginMethod = 'openai' | 'local-llm' | 'aws-bedrock' | 'azure-openai';
 
 export interface AIUserToken {
     accessToken: string;
@@ -39,13 +39,12 @@ export type AIMachineStateValue =
     | 'Unauthenticated'
     | 'Authenticated'
     | 'Disabled'
-    | { Authenticating: 'determineFlow' | 'apiKeyFlow' | 'githubCopilotFlow' | 'validatingApiKey' | 'validatingGitHubCopilot' };
+    | { Authenticating: 'determineFlow' | 'apiKeyFlow' | 'validatingApiKey' };
 
 export type AIMachineEvent =
     | { type: 'LOGIN' }
     | { type: 'LOGOUT' }
     | { type: 'API_KEY_AUTH'; apiKey: string }
-    | { type: 'GITHUB_COPILOT_AUTH' }
     | { type: 'LOCAL_LLM_AUTH'; endpoint: string }
     | { type: 'AUTH_SUCCESS'; token: AIUserToken }
     | { type: 'AUTH_FAILED'; error: string }
@@ -72,15 +71,25 @@ export const aiMachine = createMachine<AIMachineContext, AIMachineEvent>({
     },
     states: {
         Initialize: {
-            always: [
-                {
-                    target: 'Authenticated',
-                    cond: 'hasValidToken',
-                },
-                {
+            invoke: {
+                src: 'checkStoredToken',
+                onDone: [
+                    {
+                        target: 'Authenticated',
+                        cond: (_ctx, event) => event.data !== null,
+                        actions: assign({
+                            userToken: (_ctx, event) => ({ accessToken: event.data.token }),
+                            loginMethod: (_ctx, event) => event.data.loginMethod || 'openai',
+                        }),
+                    },
+                    {
+                        target: 'Unauthenticated',
+                    },
+                ],
+                onError: {
                     target: 'Unauthenticated',
                 },
-            ],
+            },
         },
         Unauthenticated: {
             on: {
@@ -98,12 +107,6 @@ export const aiMachine = createMachine<AIMachineContext, AIMachineEvent>({
                                 loginMethod: (_ctx) => 'openai',
                             }),
                         },
-                        GITHUB_COPILOT_AUTH: {
-                            target: 'githubCopilotFlow',
-                            actions: assign({
-                                loginMethod: (_ctx) => 'github-copilot',
-                            }),
-                        },
                         LOCAL_LLM_AUTH: {
                             target: 'validatingApiKey',
                             actions: assign({
@@ -117,10 +120,11 @@ export const aiMachine = createMachine<AIMachineContext, AIMachineEvent>({
                         src: 'validateApiKey',
                         onDone: {
                             target: '#karavan-ai.Authenticated',
-                            actions: assign({
+                            actions: ['saveLoginMethodOnApiKeyAuth', assign({
                                 userToken: (_ctx, event) => event.data,
                                 errorMessage: (_ctx) => undefined,
-                            }),
+                                loginMethod: (ctx) => ctx.loginMethod || 'openai',
+                            })],
                         },
                         onError: {
                             target: '#karavan-ai.Unauthenticated',
@@ -130,26 +134,25 @@ export const aiMachine = createMachine<AIMachineContext, AIMachineEvent>({
                         },
                     },
                 },
-                githubCopilotFlow: {
+                validatingApiKey: {
                     invoke: {
-                        src: 'validateGitHubCopilot',
+                        src: 'validateLocalLLM',
                         onDone: {
                             target: '#karavan-ai.Authenticated',
-                            actions: assign({
-                                userToken: (_ctx, event) => event.data,
+                            actions: ['saveLoginMethodOnLocalLLM', assign({
+                                userToken: (_ctx, event) => ({ accessToken: event.data.endpoint }),
                                 errorMessage: (_ctx) => undefined,
-                            }),
+                                loginMethod: (_ctx) => 'local-llm',
+                            })],
                         },
                         onError: {
                             target: '#karavan-ai.Unauthenticated',
                             actions: assign({
-                                errorMessage: (_ctx, event) => event.data.message || 'GitHub Copilot authentication failed',
+                                errorMessage: (_ctx, event) => event.data.message || 'Local LLM connection failed',
                             }),
                         },
                     },
                 },
-                validatingApiKey: {},
-                validatingGitHubCopilot: {},
             },
         },
         Authenticated: {
@@ -166,36 +169,61 @@ export const aiMachine = createMachine<AIMachineContext, AIMachineEvent>({
     },
 },
 {
-    guards: {
-        hasValidToken: async (context) => {
-            try {
-                const token = await getAccessToken();
-                if (token) {
-                    context.userToken = { accessToken: token };
-                    return true;
-                }
-            } catch (error) {
-                console.error('Error checking for valid token:', error);
-            }
-            return false;
-        },
-    },
+    guards: {},
     actions: {
         clearAuthData: assign({
             loginMethod: (_ctx) => undefined,
             userToken: (_ctx) => undefined,
             errorMessage: (_ctx) => undefined,
         }),
+        saveLoginMethodOnApiKeyAuth: (ctx) => {
+            storeLoginMethod('openai').catch(err => console.error('Failed to store login method:', err));
+        },
+        saveLoginMethodOnLocalLLM: (ctx) => {
+            storeLoginMethod('local-llm').catch(err => console.error('Failed to store login method:', err));
+        },
     },
     services: {
+        checkStoredToken: async () => {
+            try {
+                const token = await getAccessToken();
+                if (token) {
+                    const loginMethod = await getStoredLoginMethod();
+                    return { token, loginMethod } || null;
+                }
+                return null;
+            } catch (error) {
+                console.error('Error checking for stored token:', error);
+                return null;
+            }
+        },
         validateApiKey: async (_context, event) => {
             if (event.type === 'API_KEY_AUTH') {
                 return await validateApiKey(event.apiKey);
             }
             throw new Error('Invalid event type for API key validation');
         },
-        validateGitHubCopilot: async () => {
-            return await validateGitHubCopilot();
+        validateLocalLLM: async (_context, event) => {
+            if (event.type === 'LOCAL_LLM_AUTH') {
+                // Check if local LLM is available
+                const endpoint = event.endpoint || 'http://localhost:11434';
+                try {
+                    const response = await fetch(`${endpoint}/api/tags`, {
+                        method: 'GET',
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Local LLM is not available at ${endpoint}`);
+                    }
+                    // Store endpoint as token
+                    const config = vscode.workspace.getConfiguration('karavan.ai');
+                    const storedEndpoint = config.get<string>('localLlmEndpoint', endpoint);
+                    await vscode.workspace.getConfiguration('karavan.ai').update('localLlmEndpoint', storedEndpoint, vscode.ConfigurationTarget.Global);
+                    return { endpoint: storedEndpoint };
+                } catch (error: any) {
+                    throw new Error(`Failed to connect to Local LLM: ${error.message}`);
+                }
+            }
+            throw new Error('Invalid event type for Local LLM validation');
         },
     },
 });

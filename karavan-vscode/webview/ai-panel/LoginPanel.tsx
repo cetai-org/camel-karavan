@@ -26,15 +26,6 @@ export const LoginPanel: React.FC = () => {
     const [isValidating, setIsValidating] = React.useState(false);
     const [error, setError] = React.useState('');
 
-    const handleGitHubCopilotLogin = () => {
-        setIsValidating(true);
-        setError('');
-        vscode.postMessage({
-            command: 'login',
-            data: { method: 'github-copilot' },
-        });
-    };
-
     const handleApiKeyLogin = () => {
         if (!apiKey.trim()) {
             setError('Please enter an API key');
@@ -86,22 +77,6 @@ export const LoginPanel: React.FC = () => {
             </div>
 
             <div className="login-options">
-                {/* GitHub Copilot Option */}
-                <div className="login-option">
-                    <button
-                        className="login-button copilot"
-                        onClick={handleGitHubCopilotLogin}
-                        disabled={isValidating}
-                    >
-                        <i className="codicon codicon-github"></i>
-                        <div className="button-content">
-                            <strong>GitHub Copilot</strong>
-                            <span>Recommended if you have GitHub Copilot</span>
-                        </div>
-                        <i className="codicon codicon-arrow-right"></i>
-                    </button>
-                </div>
-
                 {/* OpenAI API Key Option */}
                 <div className="login-option">
                     <div className="option-header">
