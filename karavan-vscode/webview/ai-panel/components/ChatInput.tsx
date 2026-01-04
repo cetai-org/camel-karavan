@@ -17,9 +17,7 @@
 
 import * as React from 'react';
 import './ChatInput.css';
-
-declare const acquireVsCodeApi: any;
-const vscode = acquireVsCodeApi();
+import vscode from '../../vscode';
 
 interface ChatInputProps {
     onSend: (message: string) => void;

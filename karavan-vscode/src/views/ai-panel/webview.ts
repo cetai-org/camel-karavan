@@ -274,8 +274,9 @@ export class AIPanelWebview {
     }
 
     private getWebviewContent(): string {
-        // For Phase 2, we use a simple HTML structure that loads the React components
-        // The actual React app will be built separately and served
+        const extensionPath = vscode.extensions.getExtension('camel-karavan.karavan')?.extensionPath || '';
+        const aiPanelJs = this.panel.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'dist', 'ai-panel.js')));
+        const aiPanelCss = this.panel.webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'dist', 'ai-panel.css')));
         
         return `<!DOCTYPE html>
 <html lang="en">
@@ -284,12 +285,13 @@ export class AIPanelWebview {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" 
           content="default-src 'none'; 
-                   style-src ${this.panel.webview.cspSource} 'unsafe-inline'; 
+                   style-src ${this.panel.webview.cspSource} 'unsafe-inline' https://cdn.jsdelivr.net; 
                    script-src ${this.panel.webview.cspSource} 'unsafe-inline'; 
-                   font-src ${this.panel.webview.cspSource}; 
-                   connect-src https:;">
+                   font-src ${this.panel.webview.cspSource} https://cdn.jsdelivr.net; 
+                   connect-src https: http: ws: wss:;">
     <title>Karavan AI Copilot</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.33/dist/codicon.css">
+    <link rel="stylesheet" href="${aiPanelCss}">
     <style>
         * {
             margin: 0;
@@ -311,293 +313,15 @@ export class AIPanelWebview {
 </head>
 <body>
     <div id="root"></div>
-    
-    <script type="module">
-        // Acquire VS Code API
-        const vscode = acquireVsCodeApi();
-        
-        // Import and mount React app would go here
-        // For now, we'll use vanilla JS to demonstrate the structure
-        
-        ${this.getInlineReactApp()}
+    <script>
+        // Acquire the VS Code API once and cache it globally before any other scripts load
+        window.__vscodeApi = acquireVsCodeApi();
     </script>
+    <script src="${aiPanelJs}"></script>
 </body>
 </html>`;
     }
 
-    private getInlineReactApp(): string {
-        // This is a temporary inline implementation
-        // In production, this would load the bundled React app
-        return `
-        const root = document.getElementById('root');
-        let currentState = null;
-        let messages = [];
-
-        // Listen for messages from extension
-        window.addEventListener('message', event => {
-            const message = event.data;
-            handleMessage(message);
-        });
-
-        function handleMessage(message) {
-            console.log('Webview received:', message.command);
-            
-            switch (message.command) {
-                case 'stateUpdate':
-                    currentState = message.data;  // Extract the data property!
-                    render();
-                    break;
-                case 'streamChunk':
-                    handleStreamChunk(message.data);
-                    break;
-                case 'streamComplete':
-                    handleStreamComplete();
-                    break;
-                case 'error':
-                    handleError(message.data);
-                    break;
-                case 'loadHistory':
-                    messages = message.data.messages || [];
-                    render();
-                    break;
-            }
-        }
-
-        function handleStreamChunk(data) {
-            const { messageId, chunk } = data;
-            const existingMsg = messages.find(m => m.id === messageId);
-            
-            if (existingMsg) {
-                existingMsg.content += chunk;
-                existingMsg.isStreaming = true;
-            } else {
-                messages.push({
-                    id: messageId,
-                    role: 'assistant',
-                    content: chunk,
-                    timestamp: Date.now(),
-                    isStreaming: true
-                });
-            }
-            render();
-        }
-
-        function handleStreamComplete() {
-            messages = messages.map(m => ({ ...m, isStreaming: false }));
-            render();
-        }
-
-        function handleError(error) {
-            messages.push({
-                id: Date.now().toString(),
-                role: 'assistant',
-                content: '',
-                error,
-                timestamp: Date.now()
-            });
-            render();
-        }
-
-        function render() {
-            if (!currentState || !currentState.state) {
-                root.innerHTML = renderLoading('Loading AI Copilot...');
-                return;
-            }
-
-            const state = typeof currentState.state === 'string' 
-                ? currentState.state 
-                : (currentState.state && Object.keys(currentState.state)[0]) || 'Unauthenticated';
-
-            switch (state) {
-                case 'Initialize':
-                    root.innerHTML = renderLoading('Initializing...');
-                    break;
-                case 'Unauthenticated':
-                    root.innerHTML = renderLoginPanel();
-                    setupLoginListeners();
-                    break;
-                case 'Authenticating':
-                    root.innerHTML = renderLoading('Authenticating...');
-                    break;
-                case 'Authenticated':
-                    root.innerHTML = renderChatPanel();
-                    setupChatListeners();
-                    break;
-                case 'Disabled':
-                    root.innerHTML = renderDisabled();
-                    break;
-                default:
-                    root.innerHTML = renderError('Unknown state');
-            }
-        }
-
-        function renderLoading(message) {
-            return \`
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 16px;">
-                    <div style="width: 40px; height: 40px; border: 3px solid var(--vscode-progressBar-background); border-top-color: var(--vscode-textLink-foreground); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <p style="color: var(--vscode-descriptionForeground);">\${message}</p>
-                </div>
-                <style>
-                    @keyframes spin { to { transform: rotate(360deg); } }
-                </style>
-            \`;
-        }
-
-        function renderLoginPanel() {
-            return \`
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 32px; max-width: 600px; margin: 0 auto;">
-                    <div style="text-align: center; margin-bottom: 32px;">
-                        <div style="font-size: 64px; margin-bottom: 16px; color: var(--vscode-textLink-foreground);">
-                            <i class="codicon codicon-sparkle"></i>
-                        </div>
-                        <h2 style="margin: 0 0 12px 0; font-size: 24px; font-weight: 600;">Welcome to Karavan AI Copilot</h2>
-                        <p style="margin: 0; color: var(--vscode-descriptionForeground);">Choose your preferred authentication method</p>
-                    </div>
-                    
-                    <div style="width: 100%; display: flex; flex-direction: column; gap: 16px;">
-                        <div style="padding: 20px; background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px;">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                                <i class="codicon codicon-key" style="font-size: 18px;"></i>
-                                <strong>OpenAI API Key</strong>
-                            </div>
-                            <div style="display: flex; gap: 8px;">
-                                <input id="api-key-input" type="password" placeholder="sk-..." style="flex: 1; padding: 8px 12px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; font-family: monospace; font-size: 13px;">
-                                <button id="api-key-btn" style="padding: 8px 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; cursor: pointer;">Connect</button>
-                            </div>
-                        </div>
-                        
-                        <div style="padding: 20px; background: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 6px;">
-                            <button id="local-llm-btn" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: 1px solid var(--vscode-button-border); border-radius: 4px; cursor: pointer;">
-                                <i class="codicon codicon-server" style="font-size: 24px;"></i>
-                                <div style="flex: 1; text-align: left;">
-                                    <div style="font-weight: 600;">Local LLM</div>
-                                    <div style="font-size: 12px; opacity: 0.8;">Connect to Ollama or similar</div>
-                                </div>
-                                <i class="codicon codicon-arrow-right"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            \`;
-        }
-
-        function renderChatPanel() {
-            const messagesHtml = messages.map(msg => {
-                const isUser = msg.role === 'user';
-                return \`
-                    <div style="display: flex; flex-direction: column; gap: 8px; align-items: \${isUser ? 'flex-end' : 'flex-start'};">
-                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--vscode-descriptionForeground);">
-                            <i class="codicon codicon-\${isUser ? 'account' : 'sparkle'}"></i>
-                            <span style="font-weight: 600;">\${isUser ? 'You' : 'AI Copilot'}</span>
-                        </div>
-                        <div style="max-width: 85%; padding: 12px 16px; border-radius: 8px; background: var(\${isUser ? '--vscode-input-background' : '--vscode-editor-background'}); border: 1px solid var(--vscode-panel-border);">
-                            \${msg.error ? \`<div style="color: var(--vscode-errorForeground);"><i class="codicon codicon-error"></i> \${msg.error}</div>\` : msg.content}
-                            \${msg.isStreaming ? '<span style="animation: blink 1s step-start infinite;">▊</span>' : ''}
-                        </div>
-                    </div>
-                \`;
-            }).join('');
-
-            return \`
-                <div style="display: flex; flex-direction: column; height: 100vh;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-editorGroupHeader-tabsBackground);">
-                        <h3 style="margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                            <i class="codicon codicon-sparkle" style="color: var(--vscode-textLink-foreground);"></i>
-                            AI Copilot
-                        </h3>
-                        <button id="clear-btn" style="padding: 4px 8px; background: transparent; color: var(--vscode-foreground); border: none; cursor: pointer; border-radius: 4px;">
-                            <i class="codicon codicon-clear-all"></i>
-                        </button>
-                    </div>
-                    
-                    <div id="messages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px;">
-                        \${messagesHtml || '<div style="text-align: center; padding: 48px; color: var(--vscode-descriptionForeground);"><i class="codicon codicon-sparkle" style="font-size: 48px; display: block; margin-bottom: 16px; color: var(--vscode-textLink-foreground);"></i><h2>Karavan AI Copilot</h2><p>Ask me to help you create Apache Camel integration routes!</p></div>'}
-                    </div>
-                    
-                    <div style="padding: 16px; border-top: 1px solid var(--vscode-panel-border);">
-                        <div style="display: flex; gap: 8px;">
-                            <input id="chat-input" type="text" placeholder="Ask AI to help with Camel routes..." style="flex: 1; padding: 10px 12px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px;">
-                            <button id="send-btn" style="padding: 10px 20px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; cursor: pointer;">
-                                <i class="codicon codicon-send"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <style>
-                    @keyframes blink { 50% { opacity: 0; } }
-                </style>
-            \`;
-        }
-
-        function renderDisabled() {
-            return \`
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; padding: 32px;">
-                    <i class="codicon codicon-error" style="font-size: 48px; color: var(--vscode-editorError-foreground); margin-bottom: 16px;"></i>
-                    <h2>AI Copilot Disabled</h2>
-                    <p style="color: var(--vscode-descriptionForeground);">Enable it in settings to continue.</p>
-                </div>
-            \`;
-        }
-
-        function renderError(message) {
-            return \`<div style="padding: 20px; color: var(--vscode-errorForeground);">Error: \${message}</div>\`;
-        }
-
-        function setupLoginListeners() {
-            document.getElementById('api-key-btn')?.addEventListener('click', () => {
-                const apiKey = document.getElementById('api-key-input').value;
-                vscode.postMessage({ command: 'login', data: { method: 'openai', apiKey } });
-            });
-            
-            document.getElementById('local-llm-btn')?.addEventListener('click', () => {
-                vscode.postMessage({ command: 'login', data: { method: 'local-llm' } });
-            });
-        }
-
-        function setupChatListeners() {
-            const input = document.getElementById('chat-input');
-            const sendBtn = document.getElementById('send-btn');
-            const clearBtn = document.getElementById('clear-btn');
-            
-            const sendMessage = () => {
-                const content = input.value.trim();
-                if (!content) return;
-                
-                messages.push({
-                    id: Date.now().toString(),
-                    role: 'user',
-                    content,
-                    timestamp: Date.now()
-                });
-                
-                vscode.postMessage({
-                    command: 'sendMessage',
-                    data: { content, conversationHistory: messages }
-                });
-                
-                input.value = '';
-                render();
-                setTimeout(() => {
-                    const msgContainer = document.getElementById('messages');
-                    msgContainer.scrollTop = msgContainer.scrollHeight;
-                }, 100);
-            };
-            
-            sendBtn?.addEventListener('click', sendMessage);
-            input?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendMessage();
-            });
-            clearBtn?.addEventListener('click', () => {
-                messages = [];
-                vscode.postMessage({ command: 'clearHistory' });
-                render();
-            });
-        }
-
-        // Request initial state
-        vscode.postMessage({ command: 'getState' });
-        `;
-    }
 
     public dispose(): void {
         AIPanelWebview.currentPanel = undefined;

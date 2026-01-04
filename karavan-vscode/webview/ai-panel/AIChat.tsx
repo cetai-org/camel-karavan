@@ -20,10 +20,8 @@ import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
 import { ChatMessage } from './types';
 import { AIChatEngine } from './AIChatEngine';
+import vscode from '../vscode';
 import './AIChat.css';
-
-declare const acquireVsCodeApi: any;
-const vscode = acquireVsCodeApi();
 
 export const AIChat: React.FC = () => {
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);

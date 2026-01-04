@@ -14,9 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// Use a global variable to ensure we only acquire the API once
+declare global {
+  interface Window {
+    __vscodeApi?: any;
+  }
+}
+
 let vscode;
-if (typeof acquireVsCodeApi !== "undefined") {
-  vscode = acquireVsCodeApi();
+if (typeof window !== 'undefined' && window.__vscodeApi) {
+  // Already acquired, use the cached instance
+  vscode = window.__vscodeApi;
+} else if (typeof acquireVsCodeApi !== "undefined") {
+  try {
+    // Try to acquire and cache it
+    vscode = acquireVsCodeApi();
+    if (typeof window !== 'undefined') {
+      window.__vscodeApi = vscode;
+    }
+  } catch (error) {
+    // API was already acquired, try to use the cached instance
+    if (typeof window !== 'undefined' && window.__vscodeApi) {
+      vscode = window.__vscodeApi;
+    } else {
+      // If still not available, throw a more helpful error
+      throw new Error('VS Code API cannot be acquired and no cached instance available');
+    }
+  }
 }
 
 export default vscode;

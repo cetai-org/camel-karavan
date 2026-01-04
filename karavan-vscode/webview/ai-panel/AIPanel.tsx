@@ -19,10 +19,8 @@ import * as React from 'react';
 import { AIMachineStateSnapshot } from './types';
 import { AIChat } from './AIChat';
 import { LoginPanel } from './LoginPanel';
+import vscode from '../vscode';
 import './AIPanel.css';
-
-declare const acquireVsCodeApi: any;
-const vscode = acquireVsCodeApi();
 
 export const AIPanel: React.FC = () => {
     const [state, setState] = React.useState<AIMachineStateSnapshot | null>(null);

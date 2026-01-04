@@ -16,10 +16,8 @@
  */
 
 import * as React from 'react';
+import vscode from '../vscode';
 import './LoginPanel.css';
-
-declare const acquireVsCodeApi: any;
-const vscode = acquireVsCodeApi();
 
 export const LoginPanel: React.FC = () => {
     const [apiKey, setApiKey] = React.useState('');

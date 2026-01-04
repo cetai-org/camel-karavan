@@ -159,4 +159,24 @@ const prerenderConfig = (webpackEnv) => {
     };
 };
 
-module.exports = [extensionConfig, webviewConfig, prerenderConfig];
+const aiPanelConfig = (webpackEnv) => {
+    return {
+        ...baseConfig(webpackEnv),
+        entry: "./webview/ai-index.tsx",
+        output: {
+            path: path.resolve(__dirname, "dist"),
+            filename: "ai-panel.js",
+        },
+        plugins: [
+            new MiniCssExtractPlugin({
+                filename: "ai-panel.css",
+            }),
+            new webpack.ProvidePlugin({
+                Buffer: ["buffer", "Buffer"],
+                process: "process/browser",
+            }),
+        ],
+    };
+};
+
+module.exports = [extensionConfig, webviewConfig, prerenderConfig, aiPanelConfig];
