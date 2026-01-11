@@ -185,10 +185,15 @@ export const AIChat: React.FC = () => {
                 </div>
             </div>
 
+
             <MessageList 
                 messages={messages} 
                 isLoading={isLoading}
                 onApplyCode={handleApplyCode}
+                onClearChat={() => {
+                    setMessages([]);
+                    vscode.postMessage({ command: 'clearHistory' });
+                }}
             />
 
             <ChatInput

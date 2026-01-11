@@ -24,10 +24,12 @@ interface MessageListProps {
     messages: ChatMessage[];
     isLoading?: boolean;
     onApplyCode?: (code: string) => void;
+    onClearChat?: () => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, onApplyCode }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, onApplyCode, onClearChat }) => {
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,8 +80,20 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, o
         });
     };
 
+    // Context menu handler
+    const handleContextMenu = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleMenuClose = () => setContextMenu(null);
+    const handleClearChat = () => {
+        handleMenuClose();
+        if (onClearChat) onClearChat();
+    };
+
     return (
-        <div className="message-list">
+        <div className="message-list" onContextMenu={handleContextMenu} style={{ position: 'relative' }}>
             {messages.length === 0 && (
                 <div className="welcome-message">
                     <div className="welcome-icon">
@@ -142,6 +156,35 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, o
             )}
 
             <div ref={messagesEndRef} />
+            {contextMenu && (
+                <ul
+                    className="context-menu"
+                    style={{
+                        position: 'fixed',
+                        top: contextMenu.y,
+                        left: contextMenu.x,
+                        zIndex: 1000,
+                        background: 'var(--vscode-editor-background)',
+                        color: 'var(--vscode-foreground)',
+                        border: '1px solid var(--vscode-editorWidget-border)',
+                        borderRadius: 4,
+                        padding: 0,
+                        margin: 0,
+                        listStyle: 'none',
+                        minWidth: 120,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                    }}
+                    onMouseLeave={handleMenuClose}
+                >
+                    <li
+                        style={{ padding: '8px 16px', cursor: 'pointer' }}
+                        onClick={handleClearChat}
+                    >
+                        <i className="codicon codicon-clear-all" style={{ marginRight: 8 }} />
+                        Clear Chat
+                    </li>
+                </ul>
+            )}
         </div>
     );
 };
