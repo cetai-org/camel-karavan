@@ -23,10 +23,12 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.apache.camel.karavan.KaravanStartupLoader;
-import org.apache.camel.karavan.docker.DockerService;
+import org.apache.camel.karavan.KaravanConstants;
+import org.apache.camel.karavan.docker.DockerHealthCheck;
 import org.apache.camel.karavan.kubernetes.KubernetesStatusService;
+import org.apache.camel.karavan.loader.StartupLoader;
 import org.apache.camel.karavan.service.ConfigService;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 
 import java.util.List;
@@ -37,28 +39,32 @@ import java.util.Objects;
 public class PublicResource {
 
     @Inject
-    KaravanStartupLoader karavanStartupLoader;
+    StartupLoader startupLoader;
 
     @Inject
     KubernetesStatusService kubernetesStatusService;
 
     @Inject
-    DockerService dockerService;
+    DockerHealthCheck dockerHealthCheck;
+
+    @ConfigProperty(name = "karavan.environment", defaultValue = KaravanConstants.DEV)
+    String environment;
 
     @GET
     @Path("/readiness")
     @PermitAll
     @Produces(MediaType.APPLICATION_JSON)
     public Response getConfiguration() throws Exception {
-        var infraCheck = ConfigService.inKubernetes() ? kubernetesStatusService.call() : dockerService.call();
+        var infraCheck = ConfigService.inKubernetes() ? kubernetesStatusService.call() : dockerHealthCheck.call();
 
         List<HealthCheckResponse> list = List.of(
                 infraCheck,
-                karavanStartupLoader.call()
+                startupLoader.call()
         );
         return Response.ok(Map.of(
                 "status", list.stream().allMatch(h -> Objects.equals(h.getStatus(), HealthCheckResponse.Status.UP)),
-                "checks", list
+                "checks", list,
+                "environment", environment
         )).build();
     }
 }

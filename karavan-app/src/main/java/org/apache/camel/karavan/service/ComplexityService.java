@@ -80,13 +80,24 @@ public class ComplexityService {
 
     public List<ComplexityProject> getProjectComplexities() {
         return karavanCache.getFolders().stream()
-                .filter(p -> Objects.equals(p.getType(), ProjectFolder.Type.integration))
-                .map(project -> getProjectComplexity(project.getProjectId())).toList();
+                .filter(p -> Objects.equals(p.getType(), ProjectFolder.Type.integration)
+                        || Objects.equals(p.getType(), ProjectFolder.Type.templates)
+                        || Objects.equals(p.getType(), ProjectFolder.Type.kamelets)
+                        || Objects.equals(p.getType(), ProjectFolder.Type.documentation)
+                        || Objects.equals(p.getType(), ProjectFolder.Type.contracts))
+                .map(this::getProjectComplexity).toList();
     }
 
     public ComplexityProject getProjectComplexity(String projectId) {
+        var project =  karavanCache.getProject(projectId);
+        return getProjectComplexity(project);
+    }
+
+    public ComplexityProject getProjectComplexity(ProjectFolder project) {
+        var projectId = project.getProjectId();
         ComplexityProject complexityProject = new ComplexityProject();
         complexityProject.setProjectId(projectId);
+        complexityProject.setType(project.getType().name());
         try {
             complexityProject.setLastUpdateDate(karavanCache.getProjectFiles(projectId).stream().mapToLong(ProjectFile::getLastUpdate).max().orElse(0));
             List<ProjectFile> files = karavanCache.getProjectFiles(projectId);
@@ -99,6 +110,7 @@ public class ComplexityService {
 
                     if (file.getName().endsWith(CAMEL_YAML_EXTENSION)) {
                         complexityFile.setType(ComplexityFile.Type.camel);
+                        complexityFile.setGenerated(file.getName().startsWith("_gen_"));
                         complexityFile.setBeans(getFileBeandCount(file.getCode()));
                         complexityFile.setRests(getFileRestCount(file.getCode()));
                         List<ComplexityRoute> routes1 = getRoutes(file.getCode(), file.getName());
@@ -119,6 +131,9 @@ public class ComplexityService {
                         complexityFile.setType(ComplexityFile.Type.kubernetes);
                     } else if (file.getName().endsWith(".java")) {
                         complexityFile.setType(ComplexityFile.Type.java);
+                    } else if (file.getName().equals("openapi.json")) {
+                        complexityFile.setType(ComplexityFile.Type.openapi);
+                        complexityProject.setExposesOpenApi(true);
                     } else {
                         complexityFile.setType(ComplexityFile.Type.other);
                     }
@@ -131,6 +146,7 @@ public class ComplexityService {
             complexityProject.setRoutes(routes);
         } catch (Exception e) {
             LOGGER.error(e);
+            e.printStackTrace();
         }
         return calculateComplexity(complexityProject);
     }
@@ -320,9 +336,7 @@ public class ComplexityService {
 
     private List<ComplexityRoute> getRoutes(String code, String fileName) {
         List<ComplexityRoute> result = new ArrayList<>();
-        Yaml yaml = new Yaml();
-        List<Object> obj = yaml.load(code);
-        JsonArray json = JsonArray.of(obj);
+        JsonArray json = getRouteJsonArray(code);
         for (Object list : json) {
             if (list instanceof JsonArray l) {
                 for (Object obj1 : l) {
@@ -334,6 +348,9 @@ public class ComplexityService {
                         var rt = element.getJsonObject("routeTemplate");
                         var r = rt.getJsonObject("route");
                         result.add(getRouteComplexity(r, fileName));
+                    } else if (element.containsKey("templatedRoute")) {
+                        var tr = element.getJsonObject("templatedRoute");
+                        result.add(getTemplatedRouteComplexity(tr, fileName));
                     }
                 }
             }
@@ -341,12 +358,19 @@ public class ComplexityService {
         return result;
     }
 
-    private ComplexityRoute getRouteComplexity(JsonObject route, String fileName) {
+    public JsonArray getRouteJsonArray(String code) {
+        Yaml yaml = new Yaml();
+        List<Object> obj = yaml.load(code);
+        return JsonArray.of(obj);
+    }
+
+    public ComplexityRoute getRouteComplexity(JsonObject route, String fileName) {
         ComplexityRoute complexity = new ComplexityRoute();
         complexity.setFileName(fileName);
         try {
             complexity.setRouteId(route.getString("id"));
             complexity.setNodePrefixId(route.getString("nodePrefixId"));
+            complexity.setRouteDescription(route.getString("description"));
             var from = route.getJsonObject("from");
             var id = from.getString("id");
             var fromUri = from.getString("uri");
@@ -369,6 +393,22 @@ public class ComplexityService {
             }
         } catch (Exception e) {
             LOGGER.error(e);
+            e.printStackTrace();
+        }
+        return complexity;
+    }
+
+    private ComplexityRoute getTemplatedRouteComplexity(JsonObject templatedRoute, String fileName) {
+        ComplexityRoute complexity = new ComplexityRoute();
+        complexity.setFileName(fileName);
+        try {
+            complexity.setRouteId(templatedRoute.getString("routeId"));
+            complexity.setRouteTemplateRef(templatedRoute.getString("routeTemplateRef"));
+            complexity.setTemplated(true);
+            complexity.setNodePrefixId(templatedRoute.getString("prefixId"));
+        } catch (Exception e) {
+            LOGGER.error(e);
+            e.printStackTrace();
         }
         return complexity;
     }
@@ -377,8 +417,17 @@ public class ComplexityService {
         try {
             for (Object stepObject : steps) {
                 var obj = (JsonObject) stepObject;
-                var stepName = obj.getMap().keySet().toArray()[0].toString();
-                var step = obj.getJsonObject(stepName);
+
+                if (obj.isEmpty()) {
+                    continue;
+                }
+
+                var stepName = obj.getMap().keySet().iterator().next();
+                Object rawValue = obj.getValue(stepName);
+                if (!(rawValue instanceof JsonObject step)) {
+                    continue; // Skip this step, as it's a String (or another type)
+                }
+                // Safe to cast now (line 414 equivalent)
                 if (stepName.equals("poll") || stepName.equals("pollEnrich")) {
                     var id = step.getString("id");
                     var uri = step.getString("uri");
@@ -440,6 +489,7 @@ public class ComplexityService {
             }
         } catch (Exception e) {
             LOGGER.error(e);
+            e.printStackTrace();
         }
         return complexity;
     }

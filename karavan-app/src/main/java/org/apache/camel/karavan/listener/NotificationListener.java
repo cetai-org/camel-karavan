@@ -41,6 +41,7 @@ public class NotificationListener {
     public static final String EVENT_COMMIT = "commit";
     public static final String EVENT_CONFIG_SHARED = "configShared";
     public static final String EVENT_IMAGES_LOADED = "imagesLoaded";
+    public static final String EVENT_PROJECT_CHANGED = "projectChanged";
 
     @Inject
     EventBus eventBus;
@@ -78,11 +79,23 @@ public class NotificationListener {
         }
     }
 
+    @ConsumeEvent(value = NOTIFICATION_OTHER, blocking = true)
+    public void onProjectChanges(JsonObject event) throws Exception {
+        String userId = event.getString("userName");
+        if (userId != null) {
+            send(userId, null, EVENT_PROJECT_CHANGED, "otherEvent", event);
+        } else {
+            sendSystem(null, EVENT_PROJECT_CHANGED, "otherEvent", event);
+        }
+    }
+
     @ConsumeEvent(value = COMMIT_HAPPENED, blocking = true, ordered = true)
     public void onCommitHappened(JsonObject event) throws Exception {
         JsonObject project = event.getJsonObject("project");
         JsonArray messages = event.getJsonArray("messages");
+        JsonArray statuses = event.getJsonArray("statuses");
         project.put("messages", messages);
+        project.put("statuses", statuses);
         String eventId = event.getString("eventId");
         String userId = event.getString("userId");
         if (userId != null) {
