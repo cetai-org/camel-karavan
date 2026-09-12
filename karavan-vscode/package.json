@@ -55,6 +55,7 @@
     "onCommand:karavan.reportIssue",
     "onCommand:karavan.ai.openPanel",
     "onCommand:karavan.ai.generateRoute",
+    "onCommand:karavan.ai.suggestMapping",
     "onView:integrations"
   ],
   "main": "./dist/extension.js",
@@ -559,6 +560,12 @@
         "command": "karavan.ai.suggestComponent",
         "title": "Karavan: Suggest Component",
         "category": "Karavan"
+      },
+      {
+        "command": "karavan.ai.suggestMapping",
+        "title": "Karavan: Suggest Field Mapping",
+        "icon": "$(sparkle)",
+        "category": "Karavan"
       }
     ],
     "menus": {
@@ -617,6 +624,11 @@
           "command": "karavan.ai.generateRoute",
           "when": "resourceExtname == .yaml",
           "group": "karavan@10"
+        },
+        {
+          "command": "karavan.ai.suggestMapping",
+          "when": "resourceExtname == .json || resourceExtname == .yaml || resourceExtname == .xsd || resourceExtname == .java",
+          "group": "karavan@11"
         }
       ],
       "editor/title": [

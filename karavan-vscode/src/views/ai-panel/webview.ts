@@ -801,61 +801,6 @@ export class AIPanelWebview {
         `;
     }
 
-        function authWithGitHubCopilot() {
-            vscode.postMessage({ command: 'githubCopilotAuth' });
-        }
-
-        function authWithApiKey() {
-            const apiKey = document.getElementById('apiKey').value;
-            if (apiKey) {
-                vscode.postMessage({ command: 'apiKeyAuth', apiKey });
-            }
-        }
-
-        function authWithLocalLLM() {
-            vscode.postMessage({ command: 'localLlmAuth' });
-        }
-
-        function sendMessage() {
-            const input = document.getElementById('chatInput');
-            if (input && input.value.trim()) {
-                const text = input.value.trim();
-                messages.push({ role: 'user', content: text });
-                vscode.postMessage({ command: 'sendMessage', text });
-                input.value = '';
-                render();
-            }
-        }
-
-        function logout() {
-            vscode.postMessage({ command: 'logout' });
-            messages = [];
-        }
-
-        // Handle messages from extension
-        window.addEventListener('message', event => {
-            const message = event.data;
-            
-            if (message.command === 'stateUpdate') {
-                currentState = typeof message.state === 'object' ? 'Authenticating' : message.state;
-                render();
-            } else if (message.command === 'chatResponse') {
-                messages.push(message.message);
-                render();
-                const messagesDiv = document.getElementById('messages');
-                if (messagesDiv) {
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                }
-            }
-        });
-
-        // Request initial state
-        vscode.postMessage({ command: 'getState' });
-    </script>
-</body>
-</html>`;
-    }
-
     public dispose(): void {
         AIPanelWebview.currentPanel = undefined;
 

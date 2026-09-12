@@ -185,5 +185,6 @@ export function getAIConfig() {
         backend: config.get<LoginMethod>('backend', 'openai'),
         model: config.get<string>('model', 'gpt-4'),
         localLlmEndpoint: config.get<string>('localLlmEndpoint', 'http://localhost:11434'),
+        apiKey: config.get<string>('openaiApiKey', ''),
     };
 }
